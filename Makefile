@@ -17,7 +17,7 @@ ${OBJ}: ${HEAD}
 
 msg: msg.o
 
-contacts: contacts.o
+contacts: contacts.o shared.o
 
 clean:
 	rm -f ${OBJ}
