@@ -5,10 +5,6 @@
 
 #include "shared.h"
 
-/*GMainLoop *loop;
-unsigned int pending;*/
-TpDBusDaemon *busd = NULL;
-
 static void
 contacts_ready (TpConnection *conn,
 	guint n_contacts, TpContact * const	*contacts,
@@ -116,9 +112,21 @@ channel_cb(TpConnection *connection,
 	}
 }
 
+static void
+connection_cb(TpConnection *connection,
+	guint status)
+{
+	if (status == 0) {
+		g_printerr ("connection ready: %s/%s\n",
+			tp_connection_get_connection_manager_name (connection),
+			tp_connection_get_protocol_name(connection));
+	}
+}
+
 int
 main (int argc, char **argv)
 {
+	TpDBusDaemon *busd = NULL;
 	GError *error = NULL;
 
 	g_type_init ();
@@ -130,7 +138,8 @@ main (int argc, char **argv)
 		g_error ("%s", error->message);
 	
 	for_each_channel_cb = channel_cb;
-	for_each_channel (busd);
+	for_each_connection_cb = connection_cb;
+	tpic_run (busd);
 
 	g_main_loop_run (loop);
 
