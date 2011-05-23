@@ -4,10 +4,8 @@
 #include <string.h>
 #include <time.h>
 
-GMainLoop *loop = NULL;
-TpDBusDaemon *busd = NULL;
+#include "shared.h"
 
-unsigned int pending = 0;
 
 static void
 dump_hash_table (GHashTable *tbl)
@@ -107,122 +105,50 @@ channel_ready (TpChannel	*channel,
 }
 
 static void
-get_channels_cb (TpProxy *proxy,
-	const GValue *value, const GError *in_error,
-	gpointer user_data, GObject *weak_obj)
+channel_cb(TpConnection *connection,
+	const gchar *object_path,
+	GHashTable *map)
 {
-	if (in_error) {
-		g_printerr ("error: %s\n", in_error->message);
-		return;
-	}
+	const char *type = tp_asv_get_string (map, TP_PROP_CHANNEL_CHANNEL_TYPE);
+	const char *targetid = tp_asv_get_string (map, TP_PROP_CHANNEL_TARGET_ID);
 
-	TpConnection *connection = (TpConnection*) user_data;
-
-	g_return_if_fail (G_VALUE_HOLDS (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST));
-
-	GPtrArray *channels = g_value_get_boxed (value);
-	for (int i = 0; i < channels->len; i++) {
-		GError *error = NULL;
-		GValueArray *channel = g_ptr_array_index (channels, i);
-		char *object_path;
-		GHashTable *map;
-
-		tp_value_array_unpack (channel, 2, &object_path, &map);
-
-		const char *type = tp_asv_get_string (map, TP_PROP_CHANNEL_CHANNEL_TYPE);
-		const char *targetid = tp_asv_get_string (map, TP_PROP_CHANNEL_TARGET_ID);
-
-		/* if this channel is a contact list, we want to know
-		 * about it */
-		if (!strcmp (type, TP_IFACE_CHANNEL_TYPE_TEXT))
-		{
-			pending += 1;
-
-			TpChannel *channel = tp_channel_new_from_properties (
-				connection, object_path, map,
-				&error);
-			if (error) {
-				g_printerr ("error: %s\n", error->message);
-				g_error_free (error);
-			}
-
-			tp_channel_call_when_ready (channel,
-				channel_ready, (gpointer) connection);
-		} else {
-			g_printerr ("ignored channel %s %s\n", targetid, type);
-		}
-	}
-
-	pending -= 1;
-	if (pending == 0)
+	// if this is a text channel probe it for pending messages
+	if (!strcmp (type, TP_IFACE_CHANNEL_TYPE_TEXT))
 	{
-		g_main_loop_quit (loop);
-	}
-}
-
-static void
-connection_ready (TpConnection *connection,
-	const GError *in_error, gpointer user_data)
-{
-	if (in_error) {
-		g_printerr ("error: %s\n", in_error->message);
-		return;
-	}
-
-	g_printerr ("connection ready\n");
-
-	/* request the current channels */
-	tp_cli_dbus_properties_call_get (connection, -1,
-			TP_IFACE_CONNECTION_INTERFACE_REQUESTS,
-			"Channels",
-			get_channels_cb,
-			(gpointer)connection, NULL, NULL);
-}
-
-static void
-connection_status (TpConnection *connection,
-	guint status, const GError *in_error,
-	gpointer user_data, GObject *weak_object)
-{
-
-	if (in_error) {
-		g_printerr ("error: %s\n", in_error->message);
-		return;
-	}
-
-	if (status != 0) {
-		pending -= 1;
-	}
-}
-
-void
-connection_names (const  gchar * const *names, gsize n_names,
-	const gchar * const *cms, const gchar * const *protols,
-	const GError *in_error, gpointer user_data, GObject *weak_object)
-{
-
-	if (in_error) {
-		g_printerr ("error: %s\n", in_error->message);
-		return;
-	}
-
-	TpConnection *connection;
-	GError *error = NULL;
-
-	for(int i = 0; i < n_names; i++) {
-		const gchar *name = names[i];
+		GError *error = NULL;
 		pending += 1;
-		connection = tp_connection_new (busd, name, NULL, &error);
 
-		tp_connection_call_when_ready (connection, connection_ready, NULL);
-		tp_cli_connection_call_get_status (connection, -1,
-			connection_status, NULL, NULL, NULL);
+		TpChannel *channel = tp_channel_new_from_properties (
+			connection, object_path, map,
+			&error);
+		if (error) {
+			g_printerr ("error: %s\n", error->message);
+			g_error_free (error);
+		}
+
+		tp_channel_call_when_ready (channel,
+			channel_ready, (gpointer) connection);
+	} else {
+		g_printerr ("ignored channel %s %s\n", targetid, type);
 	}
 }
+
+static void
+connection_cb(TpConnection *connection,
+	guint status)
+{
+	if (status == 0) {
+		g_printerr ("connection ready: %s/%s\n",
+			tp_connection_get_connection_manager_name (connection),
+			tp_connection_get_protocol_name(connection));
+	}
+}
+
 
 int
 main (int argc, char **argv)
 {
+	TpDBusDaemon *busd = NULL;
 	GError *error = NULL;
 
 	g_type_init ();
@@ -233,8 +159,9 @@ main (int argc, char **argv)
 	if (!busd)
 		g_error ("%s", error->message);
 	
-	tp_list_connection_names (busd, connection_names,
-		NULL, NULL, NULL);
+	for_each_channel_cb = channel_cb;
+	for_each_connection_cb = connection_cb;
+	tpic_run (busd);
 
 	g_main_loop_run (loop);
 

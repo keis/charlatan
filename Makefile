@@ -15,7 +15,7 @@ all: ${TARGETS}
 VPATH:=src
 ${OBJ}: ${HEAD}
 
-msg: msg.o
+msg: msg.o shared.o
 
 contacts: contacts.o shared.o
 
