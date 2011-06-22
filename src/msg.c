@@ -6,6 +6,15 @@
 
 #include "shared.h"
 
+static char verbose;
+
+/* commandline arguments */
+const
+GOptionEntry entries[] = {
+    { "verbose",  'v', 0, G_OPTION_ARG_NONE,   &verbose,
+        "Whether to print all messages or just errors.", NULL },
+    { NULL,      0, 0, 0, NULL, NULL, NULL }
+};
 
 static void
 dump_hash_table (GHashTable *tbl)
@@ -39,7 +48,7 @@ message_cb(GPtrArray *message)
 
 	g_print ("Message-Token: %s\n", token);
 	g_print ("From: %s\n", sender);
-	g_print ("Sent: %s\n", receiveds);
+	g_print ("Date: %s\n", receiveds);
 
 	for (int i = 1; i < message->len; i++) {
 		GHashTable *part = g_ptr_array_index (message, i);
@@ -86,8 +95,10 @@ channel_ready (TpChannel	*channel,
 		return;
 	}
 
-	g_printerr (" > channel_ready (%s)\n",
-		tp_channel_get_identifier (channel));
+	if (verbose > 0) {
+		g_printerr (" > channel_ready (%s)\n",
+			tp_channel_get_identifier (channel));
+	}
 
 	// request pending messages
 	pending += 1;
@@ -129,7 +140,9 @@ channel_cb(TpConnection *connection,
 		tp_channel_call_when_ready (channel,
 			channel_ready, (gpointer) connection);
 	} else {
-		g_printerr ("ignored channel %s %s\n", targetid, type);
+		if (verbose > 0) {
+			g_printerr ("ignored channel %s %s\n", targetid, type);
+		}
 	}
 }
 
@@ -138,9 +151,11 @@ connection_cb(TpConnection *connection,
 	guint status)
 {
 	if (status == 0) {
-		g_printerr ("connection ready: %s/%s\n",
-			tp_connection_get_connection_manager_name (connection),
-			tp_connection_get_protocol_name(connection));
+		if (verbose > 0) {
+			g_printerr ("connection ready: %s/%s\n",
+				tp_connection_get_connection_manager_name (connection),
+				tp_connection_get_protocol_name(connection));
+		}
 	}
 }
 
@@ -152,6 +167,12 @@ main (int argc, char **argv)
 	GError *error = NULL;
 
 	g_type_init ();
+
+    /* Parse commandline arguments */
+    GOptionContext* context = g_option_context_new (NULL);
+    g_option_context_add_main_entries(context, entries, NULL);
+    g_option_context_parse(context, &argc, &argv, NULL);
+    g_option_context_free(context);
 
 	loop = g_main_loop_new (NULL, FALSE);
 
