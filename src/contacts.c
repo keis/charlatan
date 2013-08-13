@@ -133,7 +133,7 @@ connection_cb(TpConnection *connection,
 	if (status == 0) {
 		if (verbose > 0) {
 			g_printerr ("connection ready: %s/%s\n",
-				tp_connection_get_connection_manager_name (connection),
+				tp_connection_get_cm_name (connection),
 				tp_connection_get_protocol_name(connection));
 		}
 	}
@@ -158,7 +158,7 @@ main (int argc, char **argv)
 	busd = tp_dbus_daemon_dup (&error);
 	if (!busd)
 		g_error ("%s", error->message);
-	
+
 	for_each_channel_cb = channel_cb;
 	for_each_connection_cb = connection_cb;
 	tpic_run (busd);

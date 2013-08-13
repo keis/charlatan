@@ -179,7 +179,7 @@ main (int argc, char **argv)
 	busd = tp_dbus_daemon_dup (&error);
 	if (!busd)
 		g_error ("%s", error->message);
-	
+
 	for_each_channel_cb = channel_cb;
 	for_each_connection_cb = connection_cb;
 	tpic_run (busd);
