@@ -15,6 +15,6 @@ extern unsigned int pending;
 
 
 void
-tpic_run (TpDBusDaemon *bus);
+tpic_run (TpSimpleClientFactory *client);
 
 #endif

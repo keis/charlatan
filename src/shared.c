@@ -45,14 +45,17 @@ get_channels_cb (TpProxy      *proxy,
 }
 
 static void
-connection_ready (TpConnection *connection,
-                  const GError *in_error,
+connection_ready (GObject      *source,
+                  GAsyncResult *result,
                   gpointer      user_data)
 {
     (void) user_data;
 
-    if (in_error) {
-        g_printerr ("error: %s\n", in_error->message);
+    GError *error = NULL;
+    TpConnection *connection = TP_CONNECTION (source);
+
+    if (!tp_proxy_prepare_finish (source, result, &error)) {
+        g_printerr ("error: %s\n", error->message);
     }
 
     // request the current channels if needed
@@ -110,7 +113,7 @@ connection_names_cb (const gchar * const *names,
                      GObject             *weak_object)
 {
     (void) cms; (void) proto; (void) weak_object;
-    TpDBusDaemon *bus = (TpDBusDaemon*)user_data;
+    TpSimpleClientFactory *client = (TpSimpleClientFactory*)user_data;
 
     if (in_error) {
         g_printerr ("error: %s\n", in_error->message);
@@ -122,22 +125,35 @@ connection_names_cb (const gchar * const *names,
 
     for (guint i = 0; i < n_names; i++) {
         const gchar *name = names[i];
-        pending += 1;
-        connection = tp_connection_new (bus, name, NULL, &error);
 
-        tp_connection_call_when_ready (connection, connection_ready, NULL);
+        pending += 1;
+
+        gchar *dup_path = g_strdelimit (
+            g_strdup_printf ("/%s", name), ".", '/');
+
+        connection = tp_simple_client_factory_ensure_connection(
+            client,
+            dup_path,
+            NULL,
+            &error);
+
+        tp_proxy_prepare_async (connection, NULL, connection_ready, NULL);
         tp_cli_connection_call_get_status (
             connection, -1,
             connection_status, NULL, NULL, NULL);
+
+        g_free (dup_path);
     }
 }
 
 
 void
-tpic_run(TpDBusDaemon *bus)
+tpic_run (TpSimpleClientFactory *client)
 {
     if (for_each_channel_cb || for_each_connection_cb) {
-        tp_list_connection_names (bus, connection_names_cb,
-            bus, NULL, NULL);
+        tp_list_connection_names (
+            tp_simple_client_factory_get_dbus_daemon (client),
+            connection_names_cb,
+            client, NULL, NULL);
     }
 }

@@ -16,28 +16,23 @@ GOptionEntry entries[] = {
 };
 
 static void
-contacts_ready (TpConnection      *conn,
-                guint              n_contacts,
-                TpContact * const *contacts,
-                guint              n_failed,
-                const TpHandle    *failed,
-                const GError      *in_error,
-                gpointer           user_data,
-                GObject           *weak_obj)
+contacts_ready (GObject      *source,
+                GAsyncResult *result,
+                gpointer      user_data)
 {
-    TpChannel *channel = TP_CHANNEL (user_data);
+    (void) user_data;
+    GError *error = NULL;
+    GPtrArray *contacts;
 
-    if (in_error) {
-        g_printerr ("error: %s\n", in_error->message);
-        return;
+    if (!tp_simple_client_factory_upgrade_contacts_finish (
+            TP_SIMPLE_CLIENT_FACTORY (source), result, &contacts, &error)
+    ) {
+        g_printerr ("error: %s\n", error->message);
     }
 
-    g_assert (pending >= n_contacts);
-
-    int i;
-    for (i = 0; i < n_contacts; i++)
+    for (unsigned int i = 0; i < contacts->len; i++)
     {
-        TpContact *contact = contacts[i];
+        TpContact *contact = g_ptr_array_index (contacts, i);
 
         if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
             g_print (
@@ -46,7 +41,10 @@ contacts_ready (TpConnection      *conn,
                 tp_contact_get_alias (contact));
         }
     }
-    pending -= n_contacts;
+
+    g_ptr_array_free (contacts, TRUE);
+
+    pending -= 1;
     if (pending == 0)
     {
         g_main_loop_quit (loop);
@@ -54,42 +52,38 @@ contacts_ready (TpConnection      *conn,
 }
 
 static void
-channel_ready (TpChannel    *channel,
-               const GError *in_error,
+channel_ready (GObject      *source,
+               GAsyncResult *result,
                gpointer      user_data)
 {
-    TpConnection *connection = (TpConnection*) user_data;
-
-    if (in_error) {
-        g_printerr ("error: %s\n", in_error->message);
+    GError *error = NULL;
+    if (!tp_proxy_prepare_finish (source, result, &error)) {
+        g_printerr ("error: %s\n", error->message);
         return;
     }
+
+    TpConnection *connection = (TpConnection*) user_data;
+    TpChannel *channel = TP_CHANNEL (source);
 
     if (verbose > 0) {
         g_printerr (" > channel_ready (%s)\n",
             tp_channel_get_identifier (channel));
     }
 
-    const TpIntSet *members = tp_channel_group_get_members (channel);
-    GArray *handles = tp_intset_to_array (members);
+    GPtrArray *contacts = tp_channel_group_dup_members_contacts (channel);
 
-    if (handles->len > 0) {
-        pending += handles->len;
-        /* we want to create a TpContact for each member of this channel */
-        static const TpContactFeature features[] = {
-            TP_CONTACT_FEATURE_ALIAS,
-            TP_CONTACT_FEATURE_PRESENCE
-        };
-
-        tp_connection_get_contacts_by_handle (
-                connection,
-                handles->len, (const TpHandle *) handles->data,
-                G_N_ELEMENTS (features), features,
-                contacts_ready,
-                channel, NULL, NULL);
+    if (contacts->len > 0) {
+        pending += 1;
+        tp_simple_client_factory_upgrade_contacts_async (
+            tp_proxy_get_factory (connection),
+            connection,
+            contacts->len,
+            (TpContact * const *) contacts->pdata,
+            contacts_ready,
+            NULL);
     }
 
-    g_array_free (handles, TRUE);
+    g_ptr_array_free (contacts, TRUE);
 
     pending -= 1;
     if (pending == 0)
@@ -114,16 +108,21 @@ channel_cb(TpConnection *connection,
         GError *error = NULL;
         pending += 1;
 
-        TpChannel *channel = tp_channel_new_from_properties (
-            connection, object_path, map,
+        TpChannel *channel = tp_simple_client_factory_ensure_channel(
+            tp_proxy_get_factory (connection),
+            connection,
+            object_path,
+            map,
             &error);
+
         if (error) {
             g_printerr ("error: %s\n", error->message);
             g_error_free (error);
         }
 
-        tp_channel_call_when_ready (
+        tp_proxy_prepare_async (
             channel,
+            NULL,
             channel_ready,
             (gpointer) connection);
     } else {
@@ -150,8 +149,7 @@ connection_cb(TpConnection *connection,
 int
 main (int argc, char **argv)
 {
-    TpDBusDaemon *busd = NULL;
-    GError *error = NULL;
+    TpSimpleClientFactory *factory = NULL;
 
     g_type_init ();
 
@@ -163,17 +161,15 @@ main (int argc, char **argv)
 
     loop = g_main_loop_new (NULL, FALSE);
 
-    busd = tp_dbus_daemon_dup (&error);
-    if (!busd)
-        g_error ("%s", error->message);
+    factory = (TpSimpleClientFactory*) tp_automatic_client_factory_new (NULL);
 
     for_each_channel_cb = channel_cb;
     for_each_connection_cb = connection_cb;
-    tpic_run (busd);
+    tpic_run (factory);
 
     g_main_loop_run (loop);
 
-    g_object_unref (busd);
+    g_object_unref (factory);
 
     return 0;
 }
