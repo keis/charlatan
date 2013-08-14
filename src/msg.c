@@ -161,8 +161,6 @@ main (int argc, char **argv)
 {
     TpSimpleClientFactory *factory = NULL;
 
-    g_type_init ();
-
     /* Parse commandline arguments */
     GOptionContext* context = g_option_context_new (NULL);
     g_option_context_add_main_entries(context, entries, NULL);

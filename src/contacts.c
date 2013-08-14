@@ -8,8 +8,7 @@
 static char verbose;
 
 /* command line arguments */
-const
-GOptionEntry entries[] = {
+const GOptionEntry entries[] = {
     { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
         "Whether to print all messages or just errors.", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
@@ -150,8 +149,6 @@ int
 main (int argc, char **argv)
 {
     TpSimpleClientFactory *factory = NULL;
-
-    g_type_init ();
 
     /* Parse command line arguments */
     GOptionContext* context = g_option_context_new (NULL);

@@ -13,6 +13,16 @@ extern ForEachConnectionCb for_each_connection_cb;
 extern GMainLoop *loop;
 extern unsigned int pending;
 
+void
+list_connections_async (TpSimpleClientFactory *client,
+                        GAsyncReadyCallback    callback,
+                        gpointer               user_data);
+gboolean
+list_connections_finish (GObject       *source,
+                         GAsyncResult  *result,
+                         GPtrArray    **connections,
+                         GError       **error);
+
 
 void
 tpic_run (TpSimpleClientFactory *client);
