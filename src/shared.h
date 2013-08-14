@@ -1,10 +1,7 @@
 #ifndef TPT_SHARED_H
 #define TPT_SHARED_H
 
-typedef void (*ForEachChannelCb) (TpConnection *connection,
-                                  const char *object_path,
-                                  GHashTable *channel_info);
-
+typedef void (*ForEachChannelCb) (TpChannel *channel);
 typedef void (*ForEachConnectionCb) (TpConnection *connection, guint status);
 
 /* globals variables.. so shoot me (should perhaps be but in a struct/GObject */
@@ -23,6 +20,15 @@ list_connections_finish (GObject       *source,
                          GPtrArray    **connections,
                          GError       **error);
 
+void
+list_channels_async (TpConnection        *connection,
+                     GAsyncReadyCallback  callback,
+                     gpointer             user_data);
+gboolean
+list_channels_finish (GObject       *source,
+                      GAsyncResult  *result,
+                      GPtrArray    **channels,
+                      GError       **error);
 
 void
 tpic_run (TpSimpleClientFactory *client);

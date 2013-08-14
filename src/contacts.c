@@ -55,14 +55,16 @@ channel_ready (GObject      *source,
                GAsyncResult *result,
                gpointer      user_data)
 {
+    (void) user_data;
+
     GError *error = NULL;
     if (!tp_proxy_prepare_finish (source, result, &error)) {
         g_printerr ("error: %s\n", error->message);
         return;
     }
 
-    TpConnection *connection = (TpConnection*) user_data;
     TpChannel *channel = TP_CHANNEL (source);
+    TpConnection *connection = tp_channel_get_connection (channel);
 
     if (verbose > 0) {
         g_printerr (" > channel_ready (%s)\n",
@@ -92,41 +94,25 @@ channel_ready (GObject      *source,
 }
 
 static void
-channel_cb(TpConnection *connection,
-           const gchar  *object_path,
-           GHashTable   *map)
+channel_cb(TpChannel *channel)
 {
-    const char *type = tp_asv_get_string (map, TP_PROP_CHANNEL_CHANNEL_TYPE);
-    const char *targetid = tp_asv_get_string (map, TP_PROP_CHANNEL_TARGET_ID);
-
     /* if this channel is a contact list, we want to know
      * about it */
-    if (!strcmp (targetid, "subscribe") &&
+    const char *type = tp_channel_get_channel_type (channel);
+    const char *ident = tp_channel_get_identifier (channel);
+
+    if (!strcmp (ident, "subscribe") &&
         !strcmp (type, TP_IFACE_CHANNEL_TYPE_CONTACT_LIST))
     {
-        GError *error = NULL;
         pending += 1;
-
-        TpChannel *channel = tp_simple_client_factory_ensure_channel(
-            tp_proxy_get_factory (connection),
-            connection,
-            object_path,
-            map,
-            &error);
-
-        if (error) {
-            g_printerr ("error: %s\n", error->message);
-            g_error_free (error);
-        }
-
         tp_proxy_prepare_async (
             channel,
             NULL,
             channel_ready,
-            (gpointer) connection);
+            NULL);
     } else {
         if (verbose > 0) {
-            g_printerr ("ignored channel %s %s\n", targetid, type);
+            g_printerr ("ignored channel %s %s\n", ident, type);
         }
     }
 }
