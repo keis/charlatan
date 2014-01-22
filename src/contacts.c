@@ -35,7 +35,7 @@ contacts_ready (GObject      *source,
 
         if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
             g_print (
-                "%s %s\n",
+                "%s\t%s\n",
                 tp_contact_get_identifier (contact),
                 tp_contact_get_alias (contact));
         }
@@ -118,7 +118,7 @@ channel_cb(TpChannel *channel)
 }
 
 static void
-connection_cb(TpConnection *connection,
+connection_cb (TpConnection *connection,
               guint         status)
 {
     if (status == 0) {
@@ -135,16 +135,23 @@ int
 main (int argc, char **argv)
 {
     TpSimpleClientFactory *factory = NULL;
+    GQuark contact_features[] = { TP_CONTACT_FEATURE_ALIAS,
+                                  TP_CONTACT_FEATURE_PRESENCE,
+                                  0 };
 
     /* Parse command line arguments */
     GOptionContext* context = g_option_context_new (NULL);
-    g_option_context_add_main_entries(context, entries, NULL);
-    g_option_context_parse(context, &argc, &argv, NULL);
-    g_option_context_free(context);
+    g_option_context_add_main_entries (context, entries, NULL);
+    g_option_context_parse (context, &argc, &argv, NULL);
+    g_option_context_free (context);
 
     loop = g_main_loop_new (NULL, FALSE);
 
     factory = (TpSimpleClientFactory*) tp_automatic_client_factory_new (NULL);
+
+    tp_simple_client_factory_add_contact_features (factory,
+                                                   3,
+                                                   contact_features);
 
     for_each_channel_cb = channel_cb;
     for_each_connection_cb = connection_cb;

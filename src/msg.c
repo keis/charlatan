@@ -37,9 +37,11 @@ message_cb (TpMessage *message)
     GDateTime *received = g_date_time_new_from_unix_utc (
         tp_message_get_received_timestamp (message));
     gchar *timestamp = g_date_time_format (received, "%Y-%m-%d %H:%M:%S");
+    const gchar *sender_identifier = tp_contact_get_identifier (sender);
+    const gchar *sender_alias = tp_contact_get_alias (sender);
 
     g_print ("Message-Token: %s\n", tp_message_get_token (message));
-    g_print ("From: %s\n", tp_contact_get_identifier (sender));
+    g_print ("From: \"%s\" <%s>\n", sender_alias, sender_identifier);
     g_print ("Date: %s\n", timestamp);
 
     g_free (timestamp);
@@ -52,8 +54,8 @@ message_cb (TpMessage *message)
         const gchar *content = g_value_get_string (
             g_hash_table_lookup ((GHashTable*)part, "content"));
 
-        g_print ("- #%d %s\n", i, content_type);
-        g_print ("%s\n\n", content);
+        g_print ("\n- #%d %s\n", i, content_type);
+        g_print ("%s\n", content);
     }
 }
 
@@ -87,7 +89,11 @@ channel_ready (GObject      *source,
             TpMessage *message = TP_MESSAGE (iter->data);
             message_cb (message);
             g_object_unref (message);
+            if (iter->next) {
+                g_print ("\n\n");
+            }
         }
+        // possible to call tp_text_channel_ack_message_async
         g_list_free_full (messages, g_object_unref);
     } else {
         g_printerr (
@@ -145,17 +151,23 @@ int
 main (int argc, char **argv)
 {
     TpSimpleClientFactory *factory = NULL;
+    GQuark contact_features[] = { TP_CONTACT_FEATURE_ALIAS,
+                                  TP_CONTACT_FEATURE_PRESENCE,
+                                  0 };
 
     /* Parse commandline arguments */
     GOptionContext* context = g_option_context_new (NULL);
-    g_option_context_add_main_entries(context, entries, NULL);
-    g_option_context_parse(context, &argc, &argv, NULL);
-    g_option_context_free(context);
+    g_option_context_add_main_entries (context, entries, NULL);
+    g_option_context_parse (context, &argc, &argv, NULL);
+    g_option_context_free (context);
 
     loop = g_main_loop_new (NULL, FALSE);
 
     factory = (TpSimpleClientFactory*) tp_automatic_client_factory_new (NULL);
 
+    tp_simple_client_factory_add_contact_features (factory,
+                                                   3,
+                                                   contact_features);
     for_each_channel_cb = channel_cb;
     for_each_connection_cb = connection_cb;
     tpic_run (factory);

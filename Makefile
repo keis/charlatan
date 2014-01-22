@@ -1,7 +1,7 @@
 
 TARGETS=msg contacts
 
-REQ_PKGS += telepathy-glib
+REQ_PKGS += telepathy-glib gio-2.0
 LDLIBS:=$(shell pkg-config --libs $(REQ_PKGS) x11)
 PKG_CFLAGS:=$(shell pkg-config --cflags $(REQ_PKGS))
 CFLAGS += -std=c99 $(PKG_CFLAGS) -ggdb -W -Wall -Wextra -pedantic
