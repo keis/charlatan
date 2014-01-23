@@ -8,6 +8,7 @@
 
 static char verbose;
 static char acknowledge;
+static char list_messages;
 
 /* commandline arguments */
 const
@@ -16,6 +17,8 @@ GOptionEntry entries[] = {
         "Print more messages than just errors.", NULL },
     { "ack", 'a', 0, G_OPTION_ARG_NONE,  &acknowledge,
         "Acknowledge pending messages.", NULL },
+    { "who", 'w', 0, G_OPTION_ARG_NONE, &list_messages,
+        "List open channels", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -140,6 +143,11 @@ channel_cb(TpChannel *channel)
     // if this is a text channel probe it for pending messages
     if (!strcmp (type, TP_IFACE_CHANNEL_TYPE_TEXT))
     {
+        if (list_messages) {
+            g_print ("%s\n", ident);
+            return;
+        }
+
         pending += 1;
 
         GQuark features[] = { TP_TEXT_CHANNEL_FEATURE_INCOMING_MESSAGES, 0};
