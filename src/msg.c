@@ -7,12 +7,15 @@
 #include "shared.h"
 
 static char verbose;
+static char acknowledge;
 
 /* commandline arguments */
 const
 GOptionEntry entries[] = {
-    { "verbose",  'v', 0, G_OPTION_ARG_NONE,   &verbose,
-        "Whether to print all messages or just errors.", NULL },
+    { "verbose", 'v', 0, G_OPTION_ARG_NONE,  &verbose,
+        "Print more messages than just errors.", NULL },
+    { "ack", 'a', 0, G_OPTION_ARG_NONE,  &acknowledge,
+        "Acknowledge pending messages.", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -60,6 +63,19 @@ message_cb (TpMessage *message)
 }
 
 static void
+ack_messages_cb (GObject      *source,
+                 GAsyncResult *result,
+                 gpointer      user_data)
+{
+    (void) user_data;
+
+    GError *error = NULL;
+    tp_text_channel_ack_messages_finish (TP_TEXT_CHANNEL (source),
+                                         result,
+                                         &error);
+}
+
+static void
 channel_ready (GObject      *source,
                GAsyncResult *result,
                gpointer      user_data)
@@ -75,25 +91,32 @@ channel_ready (GObject      *source,
     TpChannel *channel = TP_CHANNEL (source);
 
     if (verbose > 0) {
-        g_printerr (
-            "channel_ready \"%s\" (type %s)\n",
-            tp_channel_get_identifier (channel),
-            tp_channel_get_channel_type (channel));
+        g_printerr ("channel_ready \"%s\" (type %s)\n",
+                    tp_channel_get_identifier (channel),
+                    tp_channel_get_channel_type (channel));
     }
 
     GList *messages, *iter;
     if (TP_IS_TEXT_CHANNEL (channel)) {
         messages = tp_text_channel_dup_pending_messages (
-            TP_TEXT_CHANNEL (channel));
+             TP_TEXT_CHANNEL (channel));
+
         for (iter = messages; iter; iter = iter->next) {
             TpMessage *message = TP_MESSAGE (iter->data);
             message_cb (message);
-            g_object_unref (message);
+
             if (iter->next) {
                 g_print ("\n\n");
             }
         }
-        // possible to call tp_text_channel_ack_message_async
+
+        if (acknowledge) {
+            tp_text_channel_ack_messages_async (TP_TEXT_CHANNEL (channel),
+                                                messages,
+                                                ack_messages_cb,
+                                                NULL);
+        }
+
         g_list_free_full (messages, g_object_unref);
     } else {
         g_printerr (
