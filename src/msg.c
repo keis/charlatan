@@ -9,16 +9,19 @@
 static char verbose;
 static char acknowledge;
 static char list_messages;
+static char **users;
 
 /* commandline arguments */
 const
 GOptionEntry entries[] = {
-    { "verbose", 'v', 0, G_OPTION_ARG_NONE,  &verbose,
+    { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
         "Print more messages than just errors.", NULL },
     { "ack", 'a', 0, G_OPTION_ARG_NONE,  &acknowledge,
         "Acknowledge pending messages.", NULL },
     { "who", 'w', 0, G_OPTION_ARG_NONE, &list_messages,
         "List open channels", NULL },
+    { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &users,
+        "USER", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
