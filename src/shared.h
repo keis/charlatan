@@ -1,5 +1,5 @@
-#ifndef TPT_SHARED_H
-#define TPT_SHARED_H
+#ifndef CH_SHARED_H
+#define CH_SHARED_H
 
 typedef void (*ForEachChannelCb) (TpChannel *channel);
 typedef void (*ForEachConnectionCb) (TpConnection *connection, guint status);
