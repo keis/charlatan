@@ -119,14 +119,18 @@ channel_cb(TpChannel *channel)
 
 static void
 connection_cb (TpConnection *connection,
-              guint         status)
+               guint         status)
 {
+    TpContact *self;
     if (status == 0) {
         if (verbose > 0) {
+            self = tp_connection_get_self_contact (connection);
+
             g_printerr (
-                "connection ready: %s/%s\n",
+                "connection ready: %s/%s (%s)\n",
                 tp_connection_get_cm_name (connection),
-                tp_connection_get_protocol_name(connection));
+                tp_connection_get_protocol_name(connection),
+                tp_contact_get_identifier (self));
         }
     }
 }
