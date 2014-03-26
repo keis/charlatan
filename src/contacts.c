@@ -130,7 +130,7 @@ connection_cb (TpConnection *connection,
                 "connection ready: %s/%s (%s)\n",
                 tp_connection_get_cm_name (connection),
                 tp_connection_get_protocol_name(connection),
-                tp_contact_get_identifier (self));
+                self ? tp_contact_get_identifier (self) : "n/a");
         }
     }
 }
