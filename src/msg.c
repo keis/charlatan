@@ -142,10 +142,23 @@ channel_cb(TpChannel *channel)
 {
     const char *type = tp_channel_get_channel_type (channel);
     const char *ident = tp_channel_get_identifier (channel);
+    char **userlist;
 
     // if this is a text channel probe it for pending messages
     if (!strcmp (type, TP_IFACE_CHANNEL_TYPE_TEXT))
     {
+        // filter to only include given channels
+        if ((userlist = users)) {
+            for (; *userlist; userlist += 1) {
+                if (!strcmp (ident, *userlist)) {
+                    break;
+                }
+            }
+            if (!*userlist) {
+                return;
+            }
+        }
+
         if (list_messages) {
             g_print ("%s\n", ident);
             return;
