@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "shared.h"
+#include "visitor.h"
 
 static char verbose;
 static char acknowledge;
@@ -138,8 +139,11 @@ channel_ready (GObject      *source,
 }
 
 static void
-channel_cb(TpChannel *channel)
+channel_cb (ChVisitor *visitor,
+            TpChannel *channel)
 {
+    (void) visitor;
+
     const char *type = tp_channel_get_channel_type (channel);
     const char *ident = tp_channel_get_identifier (channel);
     char **userlist;
@@ -181,9 +185,12 @@ channel_cb(TpChannel *channel)
 }
 
 static void
-connection_cb (TpConnection *connection,
+connection_cb (ChVisitor    *visitor,
+               TpConnection *connection,
                guint         status)
 {
+    (void) visitor;
+
     TpContact *self;
     if (status == 0) {
         if (verbose > 0) {
@@ -202,6 +209,8 @@ connection_cb (TpConnection *connection,
 int
 main (int argc, char **argv)
 {
+    ChVisitor visitor;
+
     TpSimpleClientFactory *factory = NULL;
     GQuark contact_features[] = { TP_CONTACT_FEATURE_ALIAS,
                                   TP_CONTACT_FEATURE_PRESENCE,
@@ -220,9 +229,10 @@ main (int argc, char **argv)
     tp_simple_client_factory_add_contact_features (factory,
                                                    3,
                                                    contact_features);
-    for_each_channel_cb = channel_cb;
-    for_each_connection_cb = connection_cb;
-    tpic_run (factory);
+
+    visitor.visit_channel = channel_cb;
+    visitor.visit_connection = connection_cb;
+    ch_visitor_exec (&visitor, factory);
 
     g_main_loop_run (loop);
 

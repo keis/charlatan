@@ -17,9 +17,9 @@ all: ${TARGETS}
 VPATH:=src
 ${OBJ}: ${HEAD}
 
-msg: msg.o shared.o
+msg: msg.o shared.o visitor.o
 
-contacts: contacts.o shared.o
+contacts: contacts.o shared.o visitor.o
 
 clean:
 	rm -f ${OBJ}
