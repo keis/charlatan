@@ -87,7 +87,7 @@ channel_ready (GObject      *source,
                GAsyncResult *result,
                gpointer      user_data)
 {
-    (void) user_data;
+    ChVisitor *visitor = (ChVisitor*) user_data;
 
     GError *error = NULL;
     if (!tp_proxy_prepare_finish (source, result, &error)) {
@@ -131,19 +131,13 @@ channel_ready (GObject      *source,
             tp_channel_get_identifier (channel));
     }
 
-    pending -= 1;
-    if (pending == 0)
-    {
-        g_main_loop_quit (loop);
-    }
+    ch_visitor_decref (visitor);
 }
 
 static void
 channel_cb (ChVisitor *visitor,
             TpChannel *channel)
 {
-    (void) visitor;
-
     const char *type = tp_channel_get_channel_type (channel);
     const char *ident = tp_channel_get_identifier (channel);
     char **userlist;
@@ -168,7 +162,7 @@ channel_cb (ChVisitor *visitor,
             return;
         }
 
-        pending += 1;
+        ch_visitor_incref (visitor);
 
         GQuark features[] = { TP_TEXT_CHANNEL_FEATURE_INCOMING_MESSAGES, 0};
 
@@ -176,7 +170,7 @@ channel_cb (ChVisitor *visitor,
             channel,
             features,
             channel_ready,
-            NULL);
+            visitor);
     } else {
         if (verbose > 0) {
             g_printerr ("ignored channel %s %s\n", ident, type);
@@ -205,6 +199,11 @@ connection_cb (ChVisitor    *visitor,
     }
 }
 
+static void
+dispose_cb (ChVisitor *visitor)
+{
+    g_main_loop_quit (loop);
+}
 
 int
 main (int argc, char **argv)
@@ -232,6 +231,7 @@ main (int argc, char **argv)
 
     visitor.visit_channel = channel_cb;
     visitor.visit_connection = connection_cb;
+    visitor.dispose = dispose_cb;
     ch_visitor_exec (&visitor, factory);
 
     g_main_loop_run (loop);

@@ -6,7 +6,6 @@
 #include "shared.h"
 
 GMainLoop *loop = NULL;
-unsigned int pending = 0;
 
 static void
 _list_connections_cb (const gchar * const *names,

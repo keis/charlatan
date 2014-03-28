@@ -4,7 +4,21 @@
 #include <telepathy-glib/telepathy-glib.h>
 
 #include "visitor.h"
-#include "shared.h"
+
+void
+ch_visitor_incref (ChVisitor *self)
+{
+    self->pending += 1;
+}
+
+void
+ch_visitor_decref (ChVisitor *self)
+{
+    self->pending -= 1;
+    if (self->pending == 0) {
+        self->dispose (self);
+    }
+}
 
 static void
 channel_list_cb (GObject      *source,
@@ -30,10 +44,8 @@ channel_list_cb (GObject      *source,
     }
 
     g_ptr_array_free (channels, TRUE);
-    pending -= 1;
-    if (pending == 0) {
-        g_main_loop_quit (loop);
-    }
+
+    ch_visitor_decref (self);
 }
 
 static void
@@ -41,7 +53,6 @@ connection_ready (GObject      *source,
                   GAsyncResult *result,
                   gpointer      user_data)
 {
-    (void) user_data;
     ChVisitor *self = (ChVisitor*) user_data;
 
     GError *error = NULL;
@@ -53,19 +64,16 @@ connection_ready (GObject      *source,
 
     // request the current channels if needed
     if (self->visit_channel) {
-        pending += 1;
+        ch_visitor_incref (self);
         list_channels_async (connection, channel_list_cb, user_data);
-    }
-
-    pending -= 1;
-    if (pending == 0) {
-        g_main_loop_quit (loop);
     }
 
     // Run callback, 0 indicates failure reason
     if (self->visit_connection) {
         self->visit_connection (self, connection, 0);
     }
+
+    ch_visitor_decref (self);
 }
 
 static void
@@ -88,10 +96,7 @@ connection_status (TpConnection *connection,
             self->visit_connection (self, connection, status);
         }
 
-        pending -= 1;
-        if (pending == 0) {
-            g_main_loop_quit (loop);
-        }
+        ch_visitor_decref (self);
     }
 }
 
@@ -114,7 +119,7 @@ connection_list_cb (GObject      *source,
     {
         TpConnection *connection = g_ptr_array_index (connections, i);
 
-        pending += 1;
+        ch_visitor_incref (self);
         tp_proxy_prepare_async (connection, NULL, connection_ready, user_data);
         tp_cli_connection_call_get_status (connection, -1,
                                            connection_status, user_data,
@@ -129,5 +134,6 @@ ch_visitor_exec (ChVisitor *self,
                  TpSimpleClientFactory *client)
 {
     self->client = client;
+    self->pending = 0;
     list_connections_async (client, connection_list_cb, self);
 }

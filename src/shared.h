@@ -3,7 +3,6 @@
 
 /* globals variables.. so shoot me (should perhaps be but in a struct/GObject */
 extern GMainLoop *loop;
-extern unsigned int pending;
 
 void
 list_connections_async (TpSimpleClientFactory *client,

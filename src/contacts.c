@@ -20,7 +20,7 @@ contacts_ready (GObject      *source,
                 GAsyncResult *result,
                 gpointer      user_data)
 {
-    (void) user_data;
+    ChVisitor *visitor = (ChVisitor*) user_data;
     GError *error = NULL;
     GPtrArray *contacts;
 
@@ -43,12 +43,7 @@ contacts_ready (GObject      *source,
     }
 
     g_ptr_array_free (contacts, TRUE);
-
-    pending -= 1;
-    if (pending == 0)
-    {
-        g_main_loop_quit (loop);
-    }
+    ch_visitor_decref (visitor);
 }
 
 static void
@@ -56,7 +51,7 @@ channel_ready (GObject      *source,
                GAsyncResult *result,
                gpointer      user_data)
 {
-    (void) user_data;
+    ChVisitor *visitor = (ChVisitor*) user_data;
 
     GError *error = NULL;
     if (!tp_proxy_prepare_finish (source, result, &error)) {
@@ -75,31 +70,24 @@ channel_ready (GObject      *source,
     GPtrArray *contacts = tp_channel_group_dup_members_contacts (channel);
 
     if (contacts->len > 0) {
-        pending += 1;
+        ch_visitor_incref (visitor);
         tp_simple_client_factory_upgrade_contacts_async (
             tp_proxy_get_factory (connection),
             connection,
             contacts->len,
             (TpContact * const *) contacts->pdata,
             contacts_ready,
-            NULL);
+            visitor);
     }
 
     g_ptr_array_free (contacts, TRUE);
-
-    pending -= 1;
-    if (pending == 0)
-    {
-        g_main_loop_quit (loop);
-    }
+    ch_visitor_decref (visitor);
 }
 
 static void
 channel_cb (ChVisitor *visitor,
             TpChannel *channel)
 {
-    (void) visitor;
-
     /* if this channel is a contact list, we want to know
      * about it */
     const char *type = tp_channel_get_channel_type (channel);
@@ -108,12 +96,12 @@ channel_cb (ChVisitor *visitor,
     if (!strcmp (ident, "subscribe") &&
         !strcmp (type, TP_IFACE_CHANNEL_TYPE_CONTACT_LIST))
     {
-        pending += 1;
+        ch_visitor_incref (visitor);
         tp_proxy_prepare_async (
             channel,
             NULL,
             channel_ready,
-            NULL);
+            visitor);
     } else {
         if (verbose > 0) {
             g_printerr ("ignored channel %s %s\n", ident, type);
@@ -142,6 +130,12 @@ connection_cb (ChVisitor    *visitor,
     }
 }
 
+static void
+dispose_cb (ChVisitor *visitor)
+{
+    g_main_loop_quit (loop);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -168,6 +162,7 @@ main (int argc, char **argv)
 
     visitor.visit_channel = channel_cb;
     visitor.visit_connection = connection_cb;
+    visitor.dispose = dispose_cb;
     ch_visitor_exec (&visitor, factory);
 
     g_main_loop_run (loop);
