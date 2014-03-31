@@ -1,0 +1,24 @@
+#compdef msg
+
+function _channels {
+    lines=(${(f)"$(msg -w)"})
+    words=(${(f)"$(echo ${(F)lines} | cut -f 2)"})
+    _wanted channel channel 'channels' \
+        compadd -l -d lines -a -- words
+}
+
+function _contacts {
+    lines=(${(f)"$(contacts)"})
+    words=(${(f)"$(echo ${(F)lines} | cut -f 2)"})
+    _wanted contact contact 'contacts' \
+        compadd -l -d lines -a -- words
+}
+
+function _identities {
+    _alternative "channels:channel:_channels" "contacts:contact:_contacts"
+}
+
+_arguments -S '*:identities:_identities ' \
+    '(-v -verbose)'{-v,--verbose}'[Print more messages than just errors]' \
+    '(-a --ack)'{-a,--ack}'[Acknowledge pending messages]' \
+    '(-w --who)'{-w,--who}'[List open channels]'
