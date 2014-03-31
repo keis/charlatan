@@ -4,6 +4,7 @@
 #include <telepathy-glib/telepathy-glib.h>
 
 #include "visitor.h"
+#include "shared.h"
 
 void
 ch_visitor_incref (ChVisitor *self)

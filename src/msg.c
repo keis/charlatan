@@ -27,20 +27,6 @@ GOptionEntry entries[] = {
 };
 
 static void
-dump_hash_table (GHashTable *tbl)
-{
-    GHashTableIter iter;
-    gchar* key;
-    GValue *value;
-
-    g_hash_table_iter_init (&iter, tbl);
-    while (g_hash_table_iter_next (&iter, (gpointer)&key, (gpointer)&value))
-    {
-        g_print("%s:%s\n", key, g_strdup_value_contents (value));
-    }
-}
-
-static void
 message_cb (TpMessage *message)
 {
     TpContact *sender = tp_signalled_message_get_sender (message);
@@ -202,6 +188,8 @@ connection_cb (ChVisitor    *visitor,
 static void
 dispose_cb (ChVisitor *visitor)
 {
+    (void) visitor;
+
     g_main_loop_quit (loop);
 }
 

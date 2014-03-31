@@ -133,6 +133,8 @@ connection_cb (ChVisitor    *visitor,
 static void
 dispose_cb (ChVisitor *visitor)
 {
+    (void) visitor;
+
     g_main_loop_quit (loop);
 }
 
