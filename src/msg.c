@@ -125,6 +125,7 @@ static void
 channel_cb (ChVisitor *visitor,
             TpChannel *channel)
 {
+    TpContact *contact = tp_channel_get_target_contact (channel);
     const char *type = tp_channel_get_channel_type (channel);
     const char *ident = tp_channel_get_identifier (channel);
     char **userlist;
@@ -145,7 +146,10 @@ channel_cb (ChVisitor *visitor,
         }
 
         if (list_messages) {
-            g_print ("%s\n", ident);
+            g_print ("%s\t%s\n",
+                     // FIXME: Alias needs another round trip before we have the data.
+                     tp_contact_get_alias (contact),
+                     ident);
             return;
         }
 
