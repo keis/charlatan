@@ -37,9 +37,9 @@ message_cb (TpMessage *message)
     const gchar *sender_identifier = tp_contact_get_identifier (sender);
     const gchar *sender_alias = tp_contact_get_alias (sender);
 
-    g_print ("Message-Token: %s\n", tp_message_get_token (message));
-    g_print ("From: \"%s\" <%s>\n", sender_alias, sender_identifier);
-    g_print ("Date: %s\n", timestamp);
+    printf ("Message-Token: %s\n", tp_message_get_token (message));
+    printf ("From: \"%s\" <%s>\n", sender_alias, sender_identifier);
+    printf ("Date: %s\n", timestamp);
 
     g_free (timestamp);
 
@@ -51,8 +51,8 @@ message_cb (TpMessage *message)
         const gchar *content = g_value_get_string (
             g_hash_table_lookup ((GHashTable*)part, "content"));
 
-        g_print ("\n- #%d %s\n", i, content_type);
-        g_print ("%s\n", content);
+        printf ("\n- #%d %s\n", i, content_type);
+        printf ("%s\n", content);
     }
 }
 
@@ -146,7 +146,7 @@ channel_cb (ChVisitor *visitor,
         }
 
         if (list_messages) {
-            g_print ("%s\t%s\n",
+            printf ("%s\t%s\n",
                      // FIXME: Alias needs another round trip before we have the data.
                      tp_contact_get_alias (contact),
                      ident);

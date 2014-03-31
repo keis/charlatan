@@ -36,7 +36,7 @@ contacts_ready (GObject      *source,
         TpContact *contact = g_ptr_array_index (contacts, i);
 
         if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
-            g_print (
+            printf (
                 "%s\t%s\n",
                 tp_contact_get_alias (contact),
                 tp_contact_get_identifier (contact));
