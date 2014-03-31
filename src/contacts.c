@@ -38,8 +38,8 @@ contacts_ready (GObject      *source,
         if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
             g_print (
                 "%s\t%s\n",
-                tp_contact_get_identifier (contact),
-                tp_contact_get_alias (contact));
+                tp_contact_get_alias (contact),
+                tp_contact_get_identifier (contact));
         }
     }
 
