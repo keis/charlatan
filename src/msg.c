@@ -4,8 +4,9 @@
 #include <string.h>
 #include <time.h>
 
-#include "shared.h"
 #include "visitor.h"
+
+GMainLoop *loop;
 
 static char verbose;
 static char acknowledge;

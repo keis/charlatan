@@ -1,9 +1,6 @@
 #ifndef CH_SHARED_H
 #define CH_SHARED_H
 
-/* globals variables.. so shoot me (should perhaps be but in a struct/GObject */
-extern GMainLoop *loop;
-
 void
 list_connections_async (TpSimpleClientFactory *client,
                         GAsyncReadyCallback    callback,

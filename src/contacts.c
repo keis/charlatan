@@ -3,8 +3,9 @@
 #include <telepathy-glib/telepathy-glib.h>
 #include <string.h>
 
-#include "shared.h"
 #include "visitor.h"
+
+GMainLoop *loop;
 
 static char verbose;
 

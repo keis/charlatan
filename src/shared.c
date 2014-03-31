@@ -5,8 +5,6 @@
 
 #include "shared.h"
 
-GMainLoop *loop = NULL;
-
 static void
 _list_connections_cb (const gchar * const *names,
                       gsize                n_names,
