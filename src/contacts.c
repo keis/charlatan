@@ -2,6 +2,7 @@
 #include <glib-object.h>
 #include <telepathy-glib/telepathy-glib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "visitor.h"
 
@@ -17,34 +18,17 @@ const GOptionEntry entries[] = {
 };
 
 static void
-contacts_ready (GObject      *source,
-                GAsyncResult *result,
-                gpointer      user_data)
+contact_cb (ChVisitor *visitor,
+            TpContact *contact)
 {
-    ChVisitor *visitor = (ChVisitor*) user_data;
-    GError *error = NULL;
-    GPtrArray *contacts;
+    (void) visitor;
 
-    if (!tp_simple_client_factory_upgrade_contacts_finish (
-            TP_SIMPLE_CLIENT_FACTORY (source), result, &contacts, &error)
-    ) {
-        g_printerr ("error: %s\n", error->message);
+    if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
+        printf (
+            "%s\t%s\n",
+            tp_contact_get_alias (contact),
+            tp_contact_get_identifier (contact));
     }
-
-    for (unsigned int i = 0; i < contacts->len; i++)
-    {
-        TpContact *contact = g_ptr_array_index (contacts, i);
-
-        if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
-            printf (
-                "%s\t%s\n",
-                tp_contact_get_alias (contact),
-                tp_contact_get_identifier (contact));
-        }
-    }
-
-    g_ptr_array_free (contacts, TRUE);
-    ch_visitor_decref (visitor);
 }
 
 static void
@@ -61,27 +45,13 @@ channel_ready (GObject      *source,
     }
 
     TpChannel *channel = TP_CHANNEL (source);
-    TpConnection *connection = tp_channel_get_connection (channel);
 
     if (verbose > 0) {
         g_printerr (" > channel_ready (%s)\n",
             tp_channel_get_identifier (channel));
     }
 
-    GPtrArray *contacts = tp_channel_group_dup_members_contacts (channel);
-
-    if (contacts->len > 0) {
-        ch_visitor_incref (visitor);
-        tp_simple_client_factory_upgrade_contacts_async (
-            tp_proxy_get_factory (connection),
-            connection,
-            contacts->len,
-            (TpContact * const *) contacts->pdata,
-            contacts_ready,
-            visitor);
-    }
-
-    g_ptr_array_free (contacts, TRUE);
+    ch_visitor_visit_channel_contacts (visitor, channel);
     ch_visitor_decref (visitor);
 }
 
@@ -128,6 +98,8 @@ connection_cb (ChVisitor    *visitor,
                 tp_connection_get_protocol_name(connection),
                 self ? tp_contact_get_identifier (self) : "n/a");
         }
+
+        ch_visitor_visit_channels (visitor, connection);
     }
 }
 
@@ -165,6 +137,7 @@ main (int argc, char **argv)
 
     visitor.visit_channel = channel_cb;
     visitor.visit_connection = connection_cb;
+    visitor.visit_contact = contact_cb;
     visitor.dispose = dispose_cb;
     ch_visitor_exec (&visitor, factory);
 

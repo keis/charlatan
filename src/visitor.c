@@ -55,18 +55,11 @@ connection_ready (GObject      *source,
                   gpointer      user_data)
 {
     ChVisitor *self = (ChVisitor*) user_data;
-
-    GError *error = NULL;
     TpConnection *connection = TP_CONNECTION (source);
+    GError *error = NULL;
 
     if (!tp_proxy_prepare_finish (source, result, &error)) {
         g_printerr ("error: %s\n", error->message);
-    }
-
-    // request the current channels if needed
-    if (self->visit_channel) {
-        ch_visitor_incref (self);
-        list_channels_async (connection, channel_list_cb, user_data);
     }
 
     // Run callback, 0 indicates failure reason
@@ -74,6 +67,34 @@ connection_ready (GObject      *source,
         self->visit_connection (self, connection, 0);
     }
 
+    ch_visitor_decref (self);
+}
+
+static void
+contacts_ready (GObject      *source,
+                GAsyncResult *result,
+                gpointer      user_data)
+{
+    ChVisitor *self = (ChVisitor*) user_data;
+    TpSimpleClientFactory *factory = TP_SIMPLE_CLIENT_FACTORY (source);
+    GError *error = NULL;
+    GPtrArray *contacts;
+
+    if (!tp_simple_client_factory_upgrade_contacts_finish (factory, result,
+                                                           &contacts, &error)
+    ) {
+        g_printerr ("error: %s\n", error->message);
+    }
+
+    for (unsigned int i = 0; i < contacts->len; i++) {
+        TpContact *contact = g_ptr_array_index (contacts, i);
+
+        if (self->visit_contact) {
+            self->visit_contact (self, contact);
+        }
+    }
+
+    g_ptr_array_free (contacts, TRUE);
     ch_visitor_decref (self);
 }
 
@@ -128,6 +149,56 @@ connection_list_cb (GObject      *source,
     }
 
     g_ptr_array_free (connections, TRUE);
+}
+
+void
+ch_visitor_visit_channels (ChVisitor *self,
+                           TpConnection *connection)
+{
+    ch_visitor_incref (self);
+    list_channels_async (connection, channel_list_cb, self);
+}
+
+void
+ch_visitor_visit_channel_contacts (ChVisitor *self,
+                                   TpChannel *channel)
+{
+    TpConnection *connection = tp_channel_get_connection (channel);
+    GPtrArray *contacts = tp_channel_group_dup_members_contacts (channel);
+
+    if (contacts->len > 0) {
+        ch_visitor_incref (self);
+        tp_simple_client_factory_upgrade_contacts_async (
+            tp_proxy_get_factory (connection),
+            connection,
+            contacts->len,
+            (TpContact * const *) contacts->pdata,
+            contacts_ready,
+            self);
+    }
+
+    g_ptr_array_free (contacts, TRUE);
+}
+
+void
+ch_visitor_visit_channel_target (ChVisitor *self,
+                                 TpChannel *channel)
+{
+    TpConnection *connection = tp_channel_get_connection (channel);
+    TpContact *contact = tp_channel_get_target_contact (channel);
+    GPtrArray *contacts = g_ptr_array_new ();
+
+    g_ptr_array_add (contacts, (gpointer) contact);
+    ch_visitor_incref (self);
+    tp_simple_client_factory_upgrade_contacts_async (
+        tp_proxy_get_factory (connection),
+        connection,
+        contacts->len,
+        (TpContact * const *) contacts->pdata,
+        contacts_ready,
+        self);
+
+    g_ptr_array_free (contacts, TRUE);
 }
 
 void

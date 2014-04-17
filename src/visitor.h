@@ -5,6 +5,7 @@ struct _ChVisitor;
 typedef struct _ChVisitor ChVisitor;
 
 typedef void (*VisitChannelCb) (ChVisitor *visitor, TpChannel *channel);
+typedef void (*VisitContactCb) (ChVisitor *visitor, TpContact *contact);
 typedef void (*VisitConnectionCb) (ChVisitor *visitor, TpConnection *connection, guint status);
 typedef void (*DisposeCb) (ChVisitor *visitor);
 
@@ -13,12 +14,22 @@ struct _ChVisitor {
     unsigned int pending;
 
     VisitChannelCb         visit_channel;
+    VisitContactCb         visit_contact;
     VisitConnectionCb      visit_connection;
     DisposeCb              dispose;
 };
 
 void
 ch_visitor_exec (ChVisitor *self, TpSimpleClientFactory *client);
+
+void
+ch_visitor_visit_channels (ChVisitor *self, TpConnection *connection);
+
+void
+ch_visitor_visit_channel_contacts (ChVisitor *self, TpChannel *channel);
+
+void
+ch_visitor_visit_channel_target (ChVisitor *self, TpChannel *channel);
 
 void
 ch_visitor_incref (ChVisitor *self);

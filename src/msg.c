@@ -3,6 +3,7 @@
 #include <telepathy-glib/telepathy-glib.h>
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
 
 #include "visitor.h"
 
@@ -12,6 +13,10 @@ static char verbose;
 static char acknowledge;
 static char list_messages;
 static char **users;
+
+struct MessageWriter {
+    char first;
+} writer = {1};
 
 /* commandline arguments */
 const
@@ -37,6 +42,12 @@ message_cb (TpMessage *message)
     const gchar *sender_identifier = tp_contact_get_identifier (sender);
     const gchar *sender_alias = tp_contact_get_alias (sender);
 
+    if (!writer.first) {
+        g_print ("\n\n");
+    } else {
+        writer.first = 0;
+    }
+
     printf ("Message-Token: %s\n", tp_message_get_token (message));
     printf ("From: \"%s\" <%s>\n", sender_alias, sender_identifier);
     printf ("Date: %s\n", timestamp);
@@ -54,6 +65,18 @@ message_cb (TpMessage *message)
         printf ("\n- #%d %s\n", i, content_type);
         printf ("%s\n", content);
     }
+}
+
+static void
+contact_cb (ChVisitor *visitor,
+            TpContact *contact)
+{
+    (void) visitor;
+
+    printf (
+        "%s\t%s\n",
+        tp_contact_get_alias (contact),
+        tp_contact_get_identifier (contact));
 }
 
 static void
@@ -98,10 +121,6 @@ channel_ready (GObject      *source,
         for (iter = messages; iter; iter = iter->next) {
             TpMessage *message = TP_MESSAGE (iter->data);
             message_cb (message);
-
-            if (iter->next) {
-                g_print ("\n\n");
-            }
         }
 
         if (acknowledge) {
@@ -125,7 +144,6 @@ static void
 channel_cb (ChVisitor *visitor,
             TpChannel *channel)
 {
-    TpContact *contact = tp_channel_get_target_contact (channel);
     const char *type = tp_channel_get_channel_type (channel);
     const char *ident = tp_channel_get_identifier (channel);
     char **userlist;
@@ -146,17 +164,13 @@ channel_cb (ChVisitor *visitor,
         }
 
         if (list_messages) {
-            printf ("%s\t%s\n",
-                     // FIXME: Alias needs another round trip before we have the data.
-                     tp_contact_get_alias (contact),
-                     ident);
+            ch_visitor_visit_channel_target (visitor, channel);
             return;
         }
 
-        ch_visitor_incref (visitor);
-
         GQuark features[] = { TP_TEXT_CHANNEL_FEATURE_INCOMING_MESSAGES, 0};
 
+        ch_visitor_incref (visitor);
         tp_proxy_prepare_async (
             channel,
             features,
@@ -187,6 +201,8 @@ connection_cb (ChVisitor    *visitor,
                 tp_connection_get_protocol_name(connection),
                 self ? tp_contact_get_identifier (self) : "n/a");
         }
+
+        ch_visitor_visit_channels (visitor, connection);
     }
 }
 
@@ -224,6 +240,7 @@ main (int argc, char **argv)
 
     visitor.visit_channel = channel_cb;
     visitor.visit_connection = connection_cb;
+    visitor.visit_contact = contact_cb;
     visitor.dispose = dispose_cb;
     ch_visitor_exec (&visitor, factory);
 
