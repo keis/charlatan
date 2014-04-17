@@ -73,10 +73,9 @@ contact_cb (ChVisitor *visitor,
 {
     (void) visitor;
 
-    printf (
-        "%s\t%s\n",
-        tp_contact_get_alias (contact),
-        tp_contact_get_identifier (contact));
+    printf ("%s\t%s\n",
+            tp_contact_get_alias (contact),
+            tp_contact_get_identifier (contact));
 }
 
 static void
@@ -132,9 +131,8 @@ channel_ready (GObject      *source,
 
         g_list_free_full (messages, g_object_unref);
     } else {
-        g_printerr (
-            "error: %s is not a text channel\n",
-            tp_channel_get_identifier (channel));
+        g_printerr ("error: %s is not a text channel\n",
+                    tp_channel_get_identifier (channel));
     }
 
     ch_visitor_decref (visitor);
@@ -171,11 +169,10 @@ channel_cb (ChVisitor *visitor,
         GQuark features[] = { TP_TEXT_CHANNEL_FEATURE_INCOMING_MESSAGES, 0};
 
         ch_visitor_incref (visitor);
-        tp_proxy_prepare_async (
-            channel,
-            features,
-            channel_ready,
-            visitor);
+        tp_proxy_prepare_async (channel,
+                                features,
+                                channel_ready,
+                                visitor);
     } else {
         if (verbose > 0) {
             g_printerr ("ignored channel %s %s\n", ident, type);
@@ -195,11 +192,10 @@ connection_cb (ChVisitor    *visitor,
         if (verbose > 0) {
             self = tp_connection_get_self_contact (connection);
 
-            g_printerr (
-                "connection ready: %s/%s (%s)\n",
-                tp_connection_get_cm_name (connection),
-                tp_connection_get_protocol_name(connection),
-                self ? tp_contact_get_identifier (self) : "n/a");
+            g_printerr ("connection ready: %s/%s (%s)\n",
+                        tp_connection_get_cm_name (connection),
+                        tp_connection_get_protocol_name(connection),
+                        self ? tp_contact_get_identifier (self) : "n/a");
         }
 
         ch_visitor_visit_channels (visitor, connection);

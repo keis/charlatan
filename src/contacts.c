@@ -24,10 +24,9 @@ contact_cb (ChVisitor *visitor,
     (void) visitor;
 
     if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
-        printf (
-            "%s\t%s\n",
-            tp_contact_get_alias (contact),
-            tp_contact_get_identifier (contact));
+        printf ("%s\t%s\n",
+                tp_contact_get_alias (contact),
+                tp_contact_get_identifier (contact));
     }
 }
 
@@ -68,11 +67,10 @@ channel_cb (ChVisitor *visitor,
         !strcmp (type, TP_IFACE_CHANNEL_TYPE_CONTACT_LIST))
     {
         ch_visitor_incref (visitor);
-        tp_proxy_prepare_async (
-            channel,
-            NULL,
-            channel_ready,
-            visitor);
+        tp_proxy_prepare_async (channel,
+                                NULL,
+                                channel_ready,
+                                visitor);
     } else {
         if (verbose > 0) {
             g_printerr ("ignored channel %s %s\n", ident, type);
@@ -92,11 +90,10 @@ connection_cb (ChVisitor    *visitor,
         if (verbose > 0) {
             self = tp_connection_get_self_contact (connection);
 
-            g_printerr (
-                "connection ready: %s/%s (%s)\n",
-                tp_connection_get_cm_name (connection),
-                tp_connection_get_protocol_name(connection),
-                self ? tp_contact_get_identifier (self) : "n/a");
+            g_printerr ("connection ready: %s/%s (%s)\n",
+                        tp_connection_get_cm_name (connection),
+                        tp_connection_get_protocol_name(connection),
+                        self ? tp_contact_get_identifier (self) : "n/a");
         }
 
         ch_visitor_visit_channels (visitor, connection);
