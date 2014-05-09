@@ -21,6 +21,8 @@ msg: msg.o shared.o visitor.o
 
 contacts: contacts.o shared.o visitor.o
 
+send: send.o
+
 clean:
 	rm -f ${OBJ}
 	rm ${TARGETS}
