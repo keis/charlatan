@@ -2,7 +2,7 @@
 #define CH_SHARED_H
 
 void
-list_connections_async (TpSimpleClientFactory *client,
+list_connections_async (TpAccountManager      *client,
                         GAsyncReadyCallback    callback,
                         gpointer               user_data);
 gboolean

@@ -207,5 +207,7 @@ ch_visitor_exec (ChVisitor *self,
 {
     self->client = client;
     self->pending = 0;
-    list_connections_async (client, connection_list_cb, self);
+    TpAccountManager *manager = tp_account_manager_new_with_factory (client);
+
+    list_connections_async (manager, connection_list_cb, self);
 }

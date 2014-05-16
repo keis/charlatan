@@ -6,57 +6,43 @@
 #include "shared.h"
 
 static void
-_list_connections_cb (const gchar * const *names,
-                      gsize                n_names,
-                      const gchar * const *cms,
-                      const gchar * const *proto,
-                      const GError        *in_error,
-                      gpointer             user_data,
-                      GObject             *weak_object)
+_list_connections_accounts_cb (GObject      *source,
+                               GAsyncResult *result,
+                               gpointer      user_data)
 {
-    (void)cms; (void) proto; (void) weak_object;
+    GList *accounts, *it;
+    GError *error = NULL;
     GTask *task = G_TASK (user_data);
-    TpSimpleClientFactory *client;
+    GPtrArray *connections;
+    TpAccount *account;
+    TpConnection *connection;
 
-    if (in_error) {
-        g_task_return_error (task, g_error_copy (in_error));
+    if (!list_accounts_finish (source, result, &accounts, &error)) {
+        g_task_return_error (task, g_error_copy (error));
         return;
     }
 
-    client = (TpSimpleClientFactory*)g_task_get_task_data (task);
+    connections = g_ptr_array_new ();
+    for (it = accounts; it; it = it->next) {
+        account = TP_ACCOUNT (it->data);
+        connection = tp_account_get_connection (account);
 
-    GPtrArray *result = g_ptr_array_new ();
-    for (unsigned int i = 0; i < n_names; i++) {
-        gchar *path = g_strdelimit (
-            g_strdup_printf ("/%s", names[i]), ".", '/');
-
-        GError *error = NULL;
-        TpConnection *connection = tp_simple_client_factory_ensure_connection(
-            client,
-            path,
-            NULL,
-            &error);
-
-        g_ptr_array_add (result, connection);
-        g_free (path);
+        if (connection) {
+            g_ptr_array_add (connections, connection);
+        }
     }
 
-    g_task_return_pointer (task, (gpointer) result, NULL);
+    g_task_return_pointer (task, (gpointer) connections, NULL);
 }
 
 void
-list_connections_async (TpSimpleClientFactory *client,
+list_connections_async (TpAccountManager      *manager,
                         GAsyncReadyCallback    callback,
                         gpointer               user_data)
 {
-    GTask *task = g_task_new (client, NULL, callback, user_data);
+    GTask *task = g_task_new (manager, NULL, callback, user_data);
 
-    g_task_set_task_data (task, client, NULL);
-    tp_list_connection_names (
-        tp_simple_client_factory_get_dbus_daemon (client),
-        _list_connections_cb,
-        task,
-        NULL, NULL);
+    list_accounts_async (manager, _list_connections_accounts_cb, task);
 }
 
 gboolean
