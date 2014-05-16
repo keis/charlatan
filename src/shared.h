@@ -20,4 +20,16 @@ list_channels_finish (GObject       *source,
                       GAsyncResult  *result,
                       GPtrArray    **channels,
                       GError       **error);
+
+
+void
+list_accounts_async (TpAccountManager    *manager,
+                     GAsyncReadyCallback  callback,
+                     gpointer             user_data);
+
+gboolean
+list_accounts_finish (GObject       *source,
+                      GAsyncResult  *result,
+                      GList        **accounts,
+                      GError       **error);
 #endif

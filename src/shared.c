@@ -141,3 +141,49 @@ list_channels_finish (GObject       *source,
     *channels = g_task_propagate_pointer (G_TASK (result), error);
     return TRUE;
 }
+
+static void
+list_accounts_manager_ready (GObject      *source,
+                             GAsyncResult *result,
+                             gpointer      user_data)
+{
+    TpAccountManager *manager;
+    GError *error = NULL;
+    GTask *task = G_TASK (user_data);
+    GList *accounts;
+
+    if (!tp_proxy_prepare_finish (source, result, &error)) {
+        g_task_return_error (task, g_error_copy (error));
+        return;
+    }
+
+    manager = g_task_get_source_object (task);
+    accounts = tp_account_manager_dup_valid_accounts (manager);
+
+    g_task_return_pointer (task, (gpointer) accounts, NULL);
+}
+
+void
+list_accounts_async (TpAccountManager    *manager,
+                     GAsyncReadyCallback  callback,
+                     gpointer             user_data)
+{
+    GTask *task = g_task_new (manager, NULL, callback, user_data);
+
+    tp_proxy_prepare_async (manager,
+                            NULL,
+                            list_accounts_manager_ready,
+                            task);
+}
+
+gboolean
+list_accounts_finish (GObject       *source,
+                      GAsyncResult  *result,
+                      GList        **accounts,
+                      GError       **error)
+{
+    g_return_val_if_fail (g_task_is_valid (result, source), FALSE);
+
+    *accounts = g_task_propagate_pointer (G_TASK (result), error);
+    return TRUE;
+}
