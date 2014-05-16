@@ -5,6 +5,8 @@
 #include <time.h>
 #include <stdio.h>
 
+#include "shared.h"
+
 GMainLoop *loop;
 
 void
@@ -96,11 +98,22 @@ connection_ready  (GObject      *source,
 }
 
 void
-list_accounts (TpAccountManager *manager, TpSimpleClientFactory *client)
+list_accounts_cb (GObject      *source,
+                  GAsyncResult *result,
+                  gpointer      user_data)
 {
-    GList *accounts = tp_account_manager_dup_valid_accounts (manager);
-    GList *it;
+    (void) user_data;
+
+    GList *accounts, *it;
+    GError *error = NULL;
     TpAccount *account;
+    TpConnection *connection;
+
+    if (!list_accounts_finish (source, result, &accounts, &error)) {
+        g_printerr ("error: %s\n", error->message);
+        return;
+    }
+
 
     GQuark connection_features[] = { TP_CONNECTION_FEATURE_CONNECTED,
                                      0 };
@@ -113,10 +126,13 @@ list_accounts (TpAccountManager *manager, TpSimpleClientFactory *client)
             continue;
         }
 
-        tp_proxy_prepare_async (tp_account_get_connection (account),
-                                connection_features,
-                                connection_ready,
-                                NULL);
+        connection = tp_account_get_connection (account);
+        if (connection) {
+            tp_proxy_prepare_async (connection,
+                                    connection_features,
+                                    connection_ready,
+                                    NULL);
+        }
 
         /*TpAccountChannelRequest *req = tp_account_channel_request_new_text (
             account,
@@ -135,24 +151,6 @@ list_accounts (TpAccountManager *manager, TpSimpleClientFactory *client)
     }
 
     g_list_free_full (accounts, g_object_unref);
-}
-
-
-static void
-account_manager_ready (GObject      *source,
-                       GAsyncResult *result,
-                       gpointer      user_data)
-{
-    TpSimpleClientFactory *client = (TpSimpleClientFactory*) user_data;
-
-    GError *error = NULL;
-    if (!tp_proxy_prepare_finish (source, result, &error)) {
-        g_printerr ("error: %s\n", error->message);
-        return;
-    }
-
-    TpAccountManager *manager = TP_ACCOUNT_MANAGER (source);
-    list_accounts (manager, client);
 }
 
 int
@@ -182,10 +180,7 @@ main (int argc, char **argv)
     accman = tp_account_manager_new_with_factory (factory);
 
 
-    tp_proxy_prepare_async (accman,
-                            NULL,
-                            account_manager_ready,
-                            factory);
+    list_accounts_async (accman, list_accounts_cb, factory);
 
     g_main_loop_run (loop);
     return 0;
