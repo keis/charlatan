@@ -32,6 +32,7 @@ _list_connections_accounts_cb (GObject      *source,
         }
     }
 
+    g_list_free_full (accounts, g_object_unref);
     g_task_return_pointer (task, (gpointer) connections, NULL);
 }
 
