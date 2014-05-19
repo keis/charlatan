@@ -65,6 +65,9 @@ ensure_contact_cb (GObject      *source,
 {
     GError *error = NULL;
     TpContact *contact;
+    TpConnection *connection;
+    TpAccount *account;
+    TpAccountChannelRequest *req;
 
     contact = tp_simple_client_factory_ensure_contact_by_id_finish (source, result, &error);
 
@@ -73,7 +76,22 @@ ensure_contact_cb (GObject      *source,
         return;
     }
 
-    printf("YO %s\n", tp_contact_get_presence_status (contact));
+    if (strcmp (tp_contact_get_presence_status (contact), "unknown") != 0) {
+        connection = tp_contact_get_connection (contact);
+        account = tp_connection_get_account (connection);
+
+        req = tp_account_channel_request_new_text (account,
+                                                   0);
+
+        tp_account_channel_request_set_target_contact (req,
+                                                       contact);
+
+        tp_account_channel_request_ensure_and_handle_channel_async (
+            req,
+            NULL,
+            ensure_channel_cb,
+            account);
+    }
 }
 
 void
@@ -98,59 +116,31 @@ connection_ready  (GObject      *source,
 }
 
 void
-list_accounts_cb (GObject      *source,
-                  GAsyncResult *result,
-                  gpointer      user_data)
+list_connections_cb (GObject      *source,
+                     GAsyncResult *result,
+                     gpointer      user_data)
 {
     (void) user_data;
 
-    GList *accounts, *it;
     GError *error = NULL;
-    TpAccount *account;
+    GPtrArray *connections;
     TpConnection *connection;
+    GQuark connection_features[] = { TP_CONNECTION_FEATURE_CONNECTED,
+                                     0 };
 
-    if (!list_accounts_finish (source, result, &accounts, &error)) {
+    if (!list_connections_finish (source, result, &connections, &error)) {
         g_printerr ("error: %s\n", error->message);
         return;
     }
 
+    for (unsigned int i = 0; i < connections->len; i++) {
+        connection = TP_CONNECTION (g_ptr_array_index (connections, i));
 
-    GQuark connection_features[] = { TP_CONNECTION_FEATURE_CONNECTED,
-                                     0 };
-
-    for (it = accounts; it; it = it->next) {
-        account = it->data;
-        printf("account %s\n", tp_proxy_get_object_path (account));
-
-        if (!tp_account_is_enabled (account)) {
-            continue;
-        }
-
-        connection = tp_account_get_connection (account);
-        if (connection) {
-            tp_proxy_prepare_async (connection,
-                                    connection_features,
-                                    connection_ready,
-                                    NULL);
-        }
-
-        /*TpAccountChannelRequest *req = tp_account_channel_request_new_text (
-            account,
-            0);
-
-        tp_account_channel_request_set_target_id (
-            req,
-            TP_HANDLE_TYPE_CONTACT,
-            "christer.gustavsson@klarna.com");
-
-        tp_account_channel_request_ensure_and_handle_channel_async (
-            req,
-            NULL,
-            ensure_channel_cb,
-            account);*/
+        tp_proxy_prepare_async (connection,
+                                connection_features,
+                                connection_ready,
+                                NULL);
     }
-
-    g_list_free_full (accounts, g_object_unref);
 }
 
 int
@@ -180,7 +170,7 @@ main (int argc, char **argv)
     accman = tp_account_manager_new_with_factory (factory);
 
 
-    list_accounts_async (accman, list_accounts_cb, factory);
+    list_connections_async (accman, list_connections_cb, NULL);
 
     g_main_loop_run (loop);
     return 0;
