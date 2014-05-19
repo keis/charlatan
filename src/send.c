@@ -146,12 +146,8 @@ list_connections_cb (GObject      *source,
 int
 main (int argc, char **argv)
 {
-    TpChannelDispatcher *dispatcher;
     TpAccountManager *accman;
     TpSimpleClientFactory *factory;
-    TpDBusDaemon *bus;
-    GHashTable *request;
-    gchar *account_path = argv[1];
 
     GQuark contact_features[] = { TP_CONTACT_FEATURE_ALIAS,
                                   TP_CONTACT_FEATURE_PRESENCE,
@@ -165,8 +161,6 @@ main (int argc, char **argv)
                                                    3,
                                                    contact_features);
 
-    bus = tp_simple_client_factory_get_dbus_daemon (factory);
-    dispatcher = tp_channel_dispatcher_new (bus);
     accman = tp_account_manager_new_with_factory (factory);
 
 
