@@ -134,6 +134,7 @@ connection_list_cb (GObject      *source,
 
     if (!list_connections_finish (source, result, &connections, &error)) {
         g_printerr ("error: %s\n", error->message);
+        ch_visitor_decref (self);
         return;
     }
 
@@ -149,6 +150,7 @@ connection_list_cb (GObject      *source,
     }
 
     g_ptr_array_free (connections, TRUE);
+    ch_visitor_decref (self);
 }
 
 void
@@ -205,6 +207,8 @@ void
 ch_visitor_visit_connections (ChVisitor *self)
 {
     TpAccountManager *manager;
+
+    ch_visitor_incref (self);
     manager = tp_account_manager_new_with_factory (self->client);
     list_connections_async (manager, connection_list_cb, self);
 }
