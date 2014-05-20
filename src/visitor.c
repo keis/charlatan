@@ -138,8 +138,7 @@ connection_list_cb (GObject      *source,
         return;
     }
 
-    for (unsigned int i = 0; i < connections->len; i++)
-    {
+    for (unsigned int i = 0; i < connections->len; i++) {
         TpConnection *connection = g_ptr_array_index (connections, i);
 
         ch_visitor_incref (self);
@@ -153,12 +152,104 @@ connection_list_cb (GObject      *source,
     ch_visitor_decref (self);
 }
 
+static void
+ensure_contact_by_id_cb (GObject      *source,
+                         GAsyncResult *result,
+                         gpointer      user_data)
+{
+    ChVisitor *self = (ChVisitor*) user_data;
+    GError *error = NULL;
+    TpContact *contact;
+
+    contact = tp_simple_client_factory_ensure_contact_by_id_finish (source,
+                                                                    result,
+                                                                    &error);
+
+    if (error) {
+        g_printerr ("error: %s\n", error->message);
+        ch_visitor_decref (self);
+        return;
+    }
+
+    if (self->visit_contact) {
+        self->visit_contact (self, contact);
+    }
+
+    ch_visitor_decref (self);
+}
+
+static void
+channel_request_cb (GObject      *source,
+                    GAsyncResult *result,
+                    gpointer      user_data)
+{
+    ChVisitor *self = (ChVisitor*) user_data;
+    GPtrArray *channels;
+    TpChannel *channel;
+    GError *error = NULL;
+    TpHandleChannelsContext *ctx;
+
+    if (!tp_account_channel_request_ensure_and_handle_channel_finish (source, result, &ctx, &error)) {
+        g_printerr ("error: %s\n", error->message);
+        ch_visitor_decref (self);
+        return;
+    }
+
+    g_object_get (ctx, "channels", &channels, NULL);
+    for (unsigned int i = 0; i < channels->len; i++) {
+        channel = g_ptr_array_index (channels, i);
+
+        if (self->visit_channel) {
+            self->visit_channel (self, channel);
+        }
+    }
+
+    ch_visitor_decref (self);
+}
+
 void
 ch_visitor_visit_channels (ChVisitor *self,
                            TpConnection *connection)
 {
     ch_visitor_incref (self);
     list_channels_async (connection, channel_list_cb, self);
+}
+
+void
+ch_visitor_visit_connection_contact (ChVisitor    *self,
+                                     TpConnection *connection,
+                                     char         *contact_id)
+{
+    ch_visitor_incref (self);
+
+    tp_simple_client_factory_ensure_contact_by_id_async (
+        tp_proxy_get_factory (connection),
+        connection,
+        contact_id,
+        ensure_contact_by_id_cb,
+        self);
+}
+
+void
+ch_visitor_visit_contact_channel (ChVisitor *self,
+                                  TpContact *contact)
+{
+    TpAccount *account;
+    TpConnection *connection;
+    TpAccountChannelRequest *req;
+
+    connection = tp_contact_get_connection (contact);
+    account = tp_connection_get_account (connection);
+
+    req = tp_account_channel_request_new_text (account, 0);
+    tp_account_channel_request_set_target_contact (req, contact);
+
+    ch_visitor_incref (self);
+    tp_account_channel_request_ensure_and_handle_channel_async (
+        req,
+        NULL,
+        channel_request_cb,
+        self);
 }
 
 void
