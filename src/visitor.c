@@ -202,12 +202,20 @@ ch_visitor_visit_channel_target (ChVisitor *self,
 }
 
 void
-ch_visitor_exec (ChVisitor *self,
-                 TpSimpleClientFactory *client)
+ch_visitor_visit_connections (ChVisitor *self)
 {
+    TpAccountManager *manager;
+    manager = tp_account_manager_new_with_factory (self->client);
+    list_connections_async (manager, connection_list_cb, self);
+}
+
+ChVisitor*
+ch_visitor_new (TpSimpleClientFactory *client)
+{
+    ChVisitor *self = g_new (ChVisitor, 1);
+
     self->client = client;
     self->pending = 0;
-    TpAccountManager *manager = tp_account_manager_new_with_factory (client);
 
-    list_connections_async (manager, connection_list_cb, self);
+    return self;
 }

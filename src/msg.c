@@ -213,9 +213,9 @@ dispose_cb (ChVisitor *visitor)
 int
 main (int argc, char **argv)
 {
-    ChVisitor visitor;
-
+    ChVisitor *visitor;
     TpSimpleClientFactory *factory = NULL;
+
     GQuark contact_features[] = { TP_CONTACT_FEATURE_ALIAS,
                                   TP_CONTACT_FEATURE_PRESENCE,
                                   0 };
@@ -234,11 +234,12 @@ main (int argc, char **argv)
                                                    3,
                                                    contact_features);
 
-    visitor.visit_channel = channel_cb;
-    visitor.visit_connection = connection_cb;
-    visitor.visit_contact = contact_cb;
-    visitor.dispose = dispose_cb;
-    ch_visitor_exec (&visitor, factory);
+    visitor = ch_visitor_new (factory);
+    visitor->visit_channel = channel_cb;
+    visitor->visit_connection = connection_cb;
+    visitor->visit_contact = contact_cb;
+    visitor->dispose = dispose_cb;
+    ch_visitor_visit_connections (visitor);
 
     g_main_loop_run (loop);
 

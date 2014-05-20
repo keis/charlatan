@@ -19,8 +19,11 @@ struct _ChVisitor {
     DisposeCb              dispose;
 };
 
+ChVisitor*
+ch_visitor_new (TpSimpleClientFactory *client);
+
 void
-ch_visitor_exec (ChVisitor *self, TpSimpleClientFactory *client);
+ch_visitor_visit_connections (ChVisitor *self);
 
 void
 ch_visitor_visit_channels (ChVisitor *self, TpConnection *connection);
