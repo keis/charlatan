@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "shared.h"
+#include "visitor.h"
 
 GMainLoop *loop;
 
@@ -58,28 +59,19 @@ ensure_channel_cb (GObject      *source,
     //tp_text_channel_send_message_async (chan, message, 0, message_sent, NULL);
 }
 
-void
-ensure_contact_cb (GObject      *source,
-                   GAsyncResult *result,
-                   gpointer      user_data)
+static void
+contact_cb (ChVisitor *visitor,
+            TpContact *contact)
 {
-    GError *error = NULL;
-    TpContact *contact;
-    TpConnection *connection;
     TpAccount *account;
+    TpConnection *connection;
     TpAccountChannelRequest *req;
-
-    contact = tp_simple_client_factory_ensure_contact_by_id_finish (source, result, &error);
-
-    if (error) {
-        g_printerr ("error: %s\n", error->message);
-        return;
-    }
 
     if (strcmp (tp_contact_get_presence_status (contact), "unknown") != 0) {
         connection = tp_contact_get_connection (contact);
         account = tp_connection_get_account (connection);
 
+        ch_visitor_incref (visitor);
         req = tp_account_channel_request_new_text (account,
                                                    0);
 
@@ -94,59 +86,32 @@ ensure_contact_cb (GObject      *source,
     }
 }
 
-void
-connection_ready  (GObject      *source,
-                   GAsyncResult *result,
-                   gpointer      user_data)
+static void
+connection_cb (ChVisitor    *visitor,
+               TpConnection *connection,
+               guint         status)
 {
-    GError *error = NULL;
-    if (!tp_proxy_prepare_finish (source, result, &error)) {
-        g_printerr ("error: %s\n", error->message);
-        return;
+    (void) visitor;
+
+    if (status == 0) {
+        ch_visitor_visit_connection_contact (visitor,
+                                             connection,
+                                             "christer.gustavsson@klarna.com");
     }
-
-    TpConnection *connection = TP_CONNECTION (source);
-
-    tp_simple_client_factory_ensure_contact_by_id_async (
-        tp_proxy_get_factory (connection),
-        connection,
-        "christer.gustavsson@klarna.com",
-        ensure_contact_cb,
-        NULL);
 }
 
-void
-list_connections_cb (GObject      *source,
-                     GAsyncResult *result,
-                     gpointer      user_data)
+static void
+dispose_cb (ChVisitor *visitor)
 {
-    (void) user_data;
+    (void) visitor;
 
-    GError *error = NULL;
-    GPtrArray *connections;
-    TpConnection *connection;
-    GQuark connection_features[] = { TP_CONNECTION_FEATURE_CONNECTED,
-                                     0 };
-
-    if (!list_connections_finish (source, result, &connections, &error)) {
-        g_printerr ("error: %s\n", error->message);
-        return;
-    }
-
-    for (unsigned int i = 0; i < connections->len; i++) {
-        connection = TP_CONNECTION (g_ptr_array_index (connections, i));
-
-        tp_proxy_prepare_async (connection,
-                                connection_features,
-                                connection_ready,
-                                NULL);
-    }
+    g_main_loop_quit (loop);
 }
 
 int
 main (int argc, char **argv)
 {
-    TpAccountManager *accman;
+    ChVisitor *visitor;
     TpSimpleClientFactory *factory;
 
     GQuark contact_features[] = { TP_CONTACT_FEATURE_ALIAS,
@@ -161,11 +126,15 @@ main (int argc, char **argv)
                                                    3,
                                                    contact_features);
 
-    accman = tp_account_manager_new_with_factory (factory);
-
-
-    list_connections_async (accman, list_connections_cb, NULL);
+    visitor = ch_visitor_new (factory);
+    visitor->visit_connection = connection_cb;
+    visitor->visit_contact = contact_cb;
+    visitor->dispose = dispose_cb;
+    ch_visitor_visit_connections (visitor);
 
     g_main_loop_run (loop);
+
+    g_object_unref (factory);
+
     return 0;
 }
