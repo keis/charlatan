@@ -29,6 +29,11 @@ void
 ch_visitor_visit_channels (ChVisitor *self, TpConnection *connection);
 
 void
+ch_visitor_visit_connection_contact (ChVisitor    *self,
+                                     TpConnection *connection,
+                                     char         *contact_id);
+
+void
 ch_visitor_visit_channel_contacts (ChVisitor *self, TpChannel *channel);
 
 void

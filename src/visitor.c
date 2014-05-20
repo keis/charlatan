@@ -153,12 +153,53 @@ connection_list_cb (GObject      *source,
     ch_visitor_decref (self);
 }
 
+static void
+ensure_contact_by_id_cb (GObject      *source,
+                         GAsyncResult *result,
+                         gpointer      user_data)
+{
+    ChVisitor *self = (ChVisitor*) user_data;
+    GError *error = NULL;
+    TpContact *contact;
+
+    contact = tp_simple_client_factory_ensure_contact_by_id_finish (source,
+                                                                    result,
+                                                                    &error);
+
+    if (error) {
+        g_printerr ("error: %s\n", error->message);
+        ch_visitor_decref (self);
+        return;
+    }
+
+    if (self->visit_contact) {
+        self->visit_contact (self, contact);
+    }
+
+    ch_visitor_decref (self);
+}
+
 void
 ch_visitor_visit_channels (ChVisitor *self,
                            TpConnection *connection)
 {
     ch_visitor_incref (self);
     list_channels_async (connection, channel_list_cb, self);
+}
+
+void
+ch_visitor_visit_connection_contact (ChVisitor    *self,
+                                     TpConnection *connection,
+                                     char         *contact_id)
+{
+    ch_visitor_incref (self);
+
+    tp_simple_client_factory_ensure_contact_by_id_async (
+        tp_proxy_get_factory (connection),
+        connection,
+        contact_id,
+        ensure_contact_by_id_cb,
+        self);
 }
 
 void
