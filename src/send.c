@@ -29,31 +29,24 @@ message_sent (GObject      *source,
 }
 
 void
-ensure_channel_cb (GObject      *source,
-                   GAsyncResult *result,
-                   gpointer      user_data)
+channel_cb (ChVisitor *visitor,
+            TpChannel *channel)
 {
-    TpAccount *account = (TpAccount*) user_data;
-    GPtrArray *channels;
-    TpChannel *chan;
+    TpAccount *account;
+    TpConnection *connection;
+    TpContact *contact;
     TpClientMessage *message;
-    GError *error = NULL;
-    TpHandleChannelsContext *ctx;
 
-    if (!tp_account_channel_request_ensure_and_handle_channel_finish (source, result, &ctx, &error)) {
-        g_printerr ("error: %s\n", error->message);
-        return;
-    }
+    connection = tp_channel_get_connection (channel);
+    account = tp_connection_get_account (connection);
+    contact = tp_channel_get_target_contact (channel);
 
-    g_object_get (ctx, "channels", &channels, NULL);
-    chan = g_ptr_array_index (channels, 0);
     printf("hello %s from %s\n",
-           tp_channel_get_identifier (chan),
+           tp_channel_get_identifier (channel),
            tp_proxy_get_object_path (account));
-    TpContact *con = tp_channel_get_target_contact (chan);
     printf("contact %s %d\n",
-           tp_contact_get_identifier (con),
-           tp_contact_get_subscribe_state (con));
+           tp_contact_get_identifier (contact),
+           tp_contact_get_subscribe_state (contact));
 
     //message = tp_client_message_new_text(0, "hej");
     //tp_text_channel_send_message_async (chan, message, 0, message_sent, NULL);
@@ -71,18 +64,7 @@ contact_cb (ChVisitor *visitor,
         connection = tp_contact_get_connection (contact);
         account = tp_connection_get_account (connection);
 
-        ch_visitor_incref (visitor);
-        req = tp_account_channel_request_new_text (account,
-                                                   0);
-
-        tp_account_channel_request_set_target_contact (req,
-                                                       contact);
-
-        tp_account_channel_request_ensure_and_handle_channel_async (
-            req,
-            NULL,
-            ensure_channel_cb,
-            account);
+        ch_visitor_visit_contact_channel (visitor, contact);
     }
 }
 
@@ -129,6 +111,7 @@ main (int argc, char **argv)
     visitor = ch_visitor_new (factory);
     visitor->visit_connection = connection_cb;
     visitor->visit_contact = contact_cb;
+    visitor->visit_channel = channel_cb;
     visitor->dispose = dispose_cb;
     ch_visitor_visit_connections (visitor);
 
