@@ -34,6 +34,9 @@ ch_visitor_visit_connection_contact (ChVisitor    *self,
                                      char         *contact_id);
 
 void
+ch_visitor_visit_contact_channel (ChVisitor *self, TpContact *contact);
+
+void
 ch_visitor_visit_channel_contacts (ChVisitor *self, TpChannel *channel);
 
 void
