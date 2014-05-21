@@ -50,7 +50,7 @@ message_cb (TpMessage *message)
 
     printf ("Message-Token: %s\n", tp_message_get_token (message));
     printf ("From: \"%s\" <%s>\n", sender_alias, sender_identifier);
-    printf ("Date: %s\n", timestamp);
+    printf ("Date: %s\n\n", timestamp);
 
     g_free (timestamp);
 
@@ -62,7 +62,9 @@ message_cb (TpMessage *message)
         const gchar *content = g_value_get_string (
             g_hash_table_lookup ((GHashTable*)part, "content"));
 
-        printf ("\n- #%d %s\n", i, content_type);
+        if (verbose) {
+            printf ("- #%d %s\n", i, content_type);
+        }
         printf ("%s\n", content);
     }
 }
