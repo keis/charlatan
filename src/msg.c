@@ -15,6 +15,7 @@ static char list_messages;
 static char send_message;
 static char single_target;
 static char **users;
+static GPtrArray *messages_sent;
 
 struct MessageWriter {
     char first;
@@ -50,6 +51,17 @@ static gboolean
 single_element (char **array)
 {
     return array && array[0] && !array[1];
+}
+
+static gboolean
+has_sent_message_to (const char *ident)
+{
+    for (int i = messages_sent->len - 1; i >= 0; i--) {
+        if (strcmp (messages_sent->pdata[i], ident) == 0) {
+            return TRUE;
+        }
+    }
+    return FALSE;
 }
 
 static void
@@ -149,6 +161,7 @@ channel_ready (GObject      *source,
 {
     ChVisitor *visitor = (ChVisitor*) user_data;
     TpChannel *channel;
+    const gchar *ident;
     TpMessage *message;
 
     GError *error = NULL;
@@ -158,10 +171,11 @@ channel_ready (GObject      *source,
     }
 
     channel = TP_CHANNEL (source);
+    ident = tp_channel_get_identifier (channel);
 
     if (verbose > 0) {
         g_printerr ("channel ready \"%s\" (type %s)\n",
-                    tp_channel_get_identifier (channel),
+                    ident,
                     tp_channel_get_channel_type (channel));
     }
 
@@ -184,8 +198,9 @@ channel_ready (GObject      *source,
 
         g_list_free_full (messages, g_object_unref);
 
-        if (send_message) {
+        if (send_message && !has_sent_message_to (ident)) {
             message = tp_client_message_new_text(0, msg_buffer);
+            g_ptr_array_add (messages_sent, g_strdup (ident));
             ch_visitor_incref (visitor);
             tp_text_channel_send_message_async (TP_TEXT_CHANNEL (channel),
                                                 message,
@@ -311,6 +326,7 @@ main (int argc, char **argv)
     }
 
     if (send_message) {
+        messages_sent = g_ptr_array_new ();
         read_message ();
     }
 
