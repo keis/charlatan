@@ -2,6 +2,7 @@
 #include <glib-object.h>
 #include <gio/gio.h>
 #include <telepathy-glib/telepathy-glib.h>
+#include <string.h>
 
 #include "visitor.h"
 #include "shared.h"
@@ -157,11 +158,12 @@ ensure_contact_by_id_cb (GObject      *source,
                          GAsyncResult *result,
                          gpointer      user_data)
 {
+    TpSimpleClientFactory *factory = TP_SIMPLE_CLIENT_FACTORY (source);
     ChVisitor *self = (ChVisitor*) user_data;
     GError *error = NULL;
     TpContact *contact;
 
-    contact = tp_simple_client_factory_ensure_contact_by_id_finish (source,
+    contact = tp_simple_client_factory_ensure_contact_by_id_finish (factory,
                                                                     result,
                                                                     &error);
 
@@ -183,13 +185,14 @@ channel_request_cb (GObject      *source,
                     GAsyncResult *result,
                     gpointer      user_data)
 {
+    TpAccountChannelRequest *req = TP_ACCOUNT_CHANNEL_REQUEST (source);
     ChVisitor *self = (ChVisitor*) user_data;
     GPtrArray *channels;
     TpChannel *channel;
     GError *error = NULL;
     TpHandleChannelsContext *ctx;
 
-    if (!tp_account_channel_request_ensure_and_handle_channel_finish (source, result, &ctx, &error)) {
+    if (!tp_account_channel_request_ensure_and_handle_channel_finish (req, result, &ctx, &error)) {
         g_printerr ("error: %s\n", error->message);
         ch_visitor_decref (self);
         return;
@@ -230,13 +233,21 @@ ch_visitor_visit_connection_contact (ChVisitor    *self,
         self);
 }
 
-void
-ch_visitor_visit_contact_channel (ChVisitor *self,
-                                  TpContact *contact)
+// Used to track the request to visit a channel in channel list callback
+struct _ChChannelRequest {
+    ChVisitor *self;
+    TpContact *contact;
+};
+
+typedef struct _ChChannelRequest ChChannelRequest;
+
+static void
+request_channel (ChVisitor *self,
+                 TpContact *contact)
 {
+    TpAccountChannelRequest *req;
     TpAccount *account;
     TpConnection *connection;
-    TpAccountChannelRequest *req;
 
     connection = tp_contact_get_connection (contact);
     account = tp_connection_get_account (connection);
@@ -250,6 +261,60 @@ ch_visitor_visit_contact_channel (ChVisitor *self,
         NULL,
         channel_request_cb,
         self);
+}
+
+static void
+visit_contact_channel (GObject      *source,
+                       GAsyncResult *result,
+                       gpointer      user_data)
+{
+    ChChannelRequest *chreq = (ChChannelRequest*) user_data;
+    ChVisitor *self = chreq->self;
+    TpContact *contact = chreq->contact;
+    g_free (chreq);
+
+    const char *ident, *contact_ident;
+    GError *error = NULL;
+    GPtrArray *channels;
+
+    if (!list_channels_finish (source, result, &channels, &error)) {
+        g_printerr ("error: %s\n", error->message);
+        return;
+    }
+
+    contact_ident = tp_contact_get_identifier (contact);
+
+    // Try to find a matching channel among the already established channels
+    for (unsigned int i = 0; i < channels->len; i++) {
+        TpChannel *channel = g_ptr_array_index (channels, i);
+        ident = tp_channel_get_identifier (channel);
+
+        if (!strcmp (ident, contact_ident)) {
+            self->visit_channel (self, channel);
+            goto done;
+        }
+    }
+
+    // Request a new channel
+    request_channel (self, contact);
+
+done:
+    g_ptr_array_free (channels, TRUE);
+    ch_visitor_decref (self);
+}
+
+void
+ch_visitor_visit_contact_channel (ChVisitor *self,
+                                  TpContact *contact)
+{
+    TpConnection *connection;
+    ChChannelRequest *req = g_new (ChChannelRequest, 1);
+    req->self = self;
+    req->contact = contact;
+
+    connection = tp_contact_get_connection (contact);
+    ch_visitor_incref (self);
+    list_channels_async (connection, visit_contact_channel, req);
 }
 
 void
