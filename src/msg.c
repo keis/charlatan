@@ -40,9 +40,10 @@ GOptionEntry entries[] = {
 };
 
 static gboolean
-contact_status_unknown (TpContact *contact)
+contact_status_ok (const gchar *status)
 {
-    return strcmp (tp_contact_get_presence_status (contact), "unknown") != 0;
+    return strcmp (status, "unknown") != 0 &&
+           strcmp (status, "offline") != 0;
 }
 
 static gboolean
@@ -93,6 +94,7 @@ contact_cb (ChVisitor *visitor,
             TpContact *contact)
 {
     (void) visitor;
+    const gchar *status;
 
     if (list_messages) {
         printf ("%s\t%s\n",
@@ -101,7 +103,8 @@ contact_cb (ChVisitor *visitor,
     }
 
     if (send_message) {
-        if (contact_status_unknown (contact)) {
+        status = tp_contact_get_presence_status (contact);
+        if (contact_status_ok (status)) {
             ch_visitor_visit_contact_channel (visitor, contact);
         }
     }
@@ -135,10 +138,7 @@ send_message_cb (GObject      *source,
         return;
     }
 
-    if (verbose) {
-        g_printerr ("message sent %s\n", token);
-    }
-
+    g_printerr ("message sent %s\n", token);
     ch_visitor_decref (visitor);
 }
 
@@ -160,7 +160,7 @@ channel_ready (GObject      *source,
     channel = TP_CHANNEL (source);
 
     if (verbose > 0) {
-        g_printerr ("channelready \"%s\" (type %s)\n",
+        g_printerr ("channel ready \"%s\" (type %s)\n",
                     tp_channel_get_identifier (channel),
                     tp_channel_get_channel_type (channel));
     }
