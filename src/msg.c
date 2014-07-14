@@ -131,12 +131,12 @@ send_message_cb (GObject      *source,
     GError *error;
 
     if (!tp_text_channel_send_message_finish (channel, result, &token, &error)) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error sending message: %s\n", error->message);
         return;
     }
 
     if (verbose) {
-        g_printerr ("message sent %s", token);
+        g_printerr ("message sent %s\n", token);
     }
 
     ch_visitor_decref (visitor);
@@ -153,14 +153,14 @@ channel_ready (GObject      *source,
 
     GError *error = NULL;
     if (!tp_proxy_prepare_finish (source, result, &error)) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error loading channel: %s\n", error->message);
         return;
     }
 
     channel = TP_CHANNEL (source);
 
     if (verbose > 0) {
-        g_printerr ("channel_ready \"%s\" (type %s)\n",
+        g_printerr ("channelready \"%s\" (type %s)\n",
                     tp_channel_get_identifier (channel),
                     tp_channel_get_channel_type (channel));
     }
@@ -194,7 +194,7 @@ channel_ready (GObject      *source,
                                                 visitor);
         }
     } else {
-        g_printerr ("error: %s is not a text channel\n",
+        g_printerr ("error loading channel: %s is not a text channel\n",
                     tp_channel_get_identifier (channel));
     }
 

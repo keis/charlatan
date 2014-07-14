@@ -33,7 +33,7 @@ channel_list_cb (GObject      *source,
     GPtrArray *channels;
 
     if (!list_channels_finish (source, result, &channels, &error)) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error listing channels: %s\n", error->message);
         return;
     }
 
@@ -60,7 +60,7 @@ connection_ready (GObject      *source,
     GError *error = NULL;
 
     if (!tp_proxy_prepare_finish (source, result, &error)) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error loading connection: %s\n", error->message);
     }
 
     // Run callback, 0 indicates failure reason
@@ -84,7 +84,7 @@ contacts_ready (GObject      *source,
     if (!tp_simple_client_factory_upgrade_contacts_finish (factory, result,
                                                            &contacts, &error)
     ) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error loading contacts: %s\n", error->message);
     }
 
     for (unsigned int i = 0; i < contacts->len; i++) {
@@ -110,7 +110,7 @@ connection_status (TpConnection *connection,
     ChVisitor *self = (ChVisitor*) user_data;
 
     if (in_error) {
-        g_printerr ("error: %s\n", in_error->message);
+        g_printerr ("error reading connection status: %s\n", in_error->message);
     }
 
     // Run callback for inactive connections
@@ -134,7 +134,7 @@ connection_list_cb (GObject      *source,
     GPtrArray *connections;
 
     if (!list_connections_finish (source, result, &connections, &error)) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error listing connections: %s\n", error->message);
         ch_visitor_decref (self);
         return;
     }
@@ -168,7 +168,7 @@ ensure_contact_by_id_cb (GObject      *source,
                                                                     &error);
 
     if (error) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error loading contact: %s\n", error->message);
         ch_visitor_decref (self);
         return;
     }
@@ -193,7 +193,7 @@ channel_request_cb (GObject      *source,
     TpHandleChannelsContext *ctx;
 
     if (!tp_account_channel_request_ensure_and_handle_channel_finish (req, result, &ctx, &error)) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error opening channel: %s\n", error->message);
         ch_visitor_decref (self);
         return;
     }
@@ -278,7 +278,7 @@ visit_contact_channel (GObject      *source,
     GPtrArray *channels;
 
     if (!list_channels_finish (source, result, &channels, &error)) {
-        g_printerr ("error: %s\n", error->message);
+        g_printerr ("error listing channels: %s\n", error->message);
         return;
     }
 
