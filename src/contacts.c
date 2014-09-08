@@ -24,7 +24,7 @@ contact_cb (ChVisitor *visitor,
     (void) visitor;
 
     if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
-        printf ("%s\t%s\n",
+        printf ("%-30s\t%s\n",
                 tp_contact_get_alias (contact),
                 tp_contact_get_identifier (contact));
     }
