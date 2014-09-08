@@ -8,12 +8,15 @@
 
 GMainLoop *loop;
 
-static char verbose;
+static gboolean verbose;
+static gboolean presence_all;
 
 /* command line arguments */
 const GOptionEntry entries[] = {
     { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
         "Whether to print all messages or just errors.", NULL },
+    { "all", 0, 0, G_OPTION_ARG_NONE, &presence_all,
+        "Including contacts that are are offline.", NULL},
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -23,7 +26,8 @@ contact_cb (ChVisitor *visitor,
 {
     (void) visitor;
 
-    if (tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
+    if (presence_all ||
+            tp_contact_get_presence_type (contact) != TP_CONNECTION_PRESENCE_TYPE_OFFLINE) {
         printf ("%-30s\t%s\n",
                 tp_contact_get_alias (contact),
                 tp_contact_get_identifier (contact));
